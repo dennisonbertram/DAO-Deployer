@@ -4,9 +4,10 @@
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useAccount, useChainId, useSwitchChain } from 'wagmi';
 import { useState } from 'react';
-import { ChevronDownIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { ChevronDownIcon, PlusIcon, BanknotesIcon } from '@heroicons/react/24/outline';
 import { cn } from '@/lib/utils';
 import { chains } from '@/lib/wagmi';
+import { localhost } from '@/lib/contracts/addresses';
 
 interface CustomNetworkFormProps {
   onClose: () => void;
@@ -194,6 +195,101 @@ function NetworkSelector({ currentChainId, onNetworkSwitch, onAddCustomNetwork }
   );
 }
 
+interface DevFundingButtonProps {
+  walletAddress: string;
+  onNetworkSwitch: (chainId: number) => void;
+}
+
+function DevFundingButton({ walletAddress, onNetworkSwitch }: DevFundingButtonProps) {
+  const [isLoading, setIsLoading] = useState(false);
+  const [message, setMessage] = useState<string>('');
+  const [isError, setIsError] = useState(false);
+
+  const handleFundWallet = async () => {
+    setIsLoading(true);
+    setMessage('');
+    setIsError(false);
+
+    try {
+      // First switch to localhost network
+      onNetworkSwitch(localhost.id);
+      
+      // Small delay to allow network switch to complete
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Call the funding API
+      const response = await fetch('/api/dev-fund', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          walletAddress,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fund wallet');
+      }
+
+      setMessage(`✅ Successfully sent 100 ETH! TX: ${data.transactionHash?.slice(0, 10)}...`);
+      setIsError(false);
+
+    } catch (error) {
+      console.error('Funding error:', error);
+      setMessage(error instanceof Error ? error.message : 'Failed to fund wallet');
+      setIsError(true);
+    } finally {
+      setIsLoading(false);
+      // Clear message after 5 seconds
+      setTimeout(() => setMessage(''), 5000);
+    }
+  };
+
+  // Only show in development
+  if (process.env.NODE_ENV !== 'development') {
+    return null;
+  }
+
+  return (
+    <div className="flex flex-col items-end">
+      <button
+        onClick={handleFundWallet}
+        disabled={isLoading}
+        className={cn(
+          "flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors",
+          "bg-green-600 hover:bg-green-700 text-white",
+          "disabled:opacity-50 disabled:cursor-not-allowed"
+        )}
+        title="Fund wallet with 100 ETH from Anvil (Development only)"
+      >
+        {isLoading ? (
+          <>
+            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            Funding...
+          </>
+        ) : (
+          <>
+            <BanknotesIcon className="w-4 h-4" />
+            Fund 100 ETH
+          </>
+        )}
+      </button>
+      
+      {message && (
+        <div className={cn(
+          "mt-1 text-xs px-2 py-1 rounded",
+          isError ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"
+        )}>
+          {message}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function WalletHeader() {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
@@ -242,6 +338,13 @@ export function WalletHeader() {
                   currentChainId={chainId}
                   onNetworkSwitch={handleNetworkSwitch}
                   onAddCustomNetwork={() => setShowCustomNetworkForm(true)}
+                />
+              )}
+              
+              {isConnected && address && (
+                <DevFundingButton 
+                  walletAddress={address}
+                  onNetworkSwitch={handleNetworkSwitch}
                 />
               )}
               
