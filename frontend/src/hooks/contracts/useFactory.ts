@@ -11,10 +11,11 @@ import {
   getContractAddressAsync,
   isSupportedChain,
   localhost,
-  DAOConfig,
   DeployedDAO,
   GAS_LIMITS
 } from '@/lib/contracts';
+import { DAOConfig as ContractDAOConfig } from '@/lib/contracts/types';
+import { DAOConfig } from '@/types/deploy';
 
 /**
  * Hook for getting factory contract address with support for local development
@@ -165,14 +166,14 @@ export function useDeployDAO() {
   const deployDAO = useMemo(() => {
     if (!factoryAddress) return undefined;
     
-    return (config: DAOConfig, recipient: Address) => {
+    return (config: ContractDAOConfig, recipient: Address) => {
       writeContract({
         address: factoryAddress,
         abi: FACTORY_ABI,
         functionName: 'deployDAO',
         args: [config, recipient],
         gas: GAS_LIMITS.DEPLOY_DAO,
-      });
+      } as any);
     };
   }, [factoryAddress, writeContract]);
 
@@ -261,7 +262,7 @@ export function useFactory() {
  * Hook for factory contract stats and analytics
  */
 export function useFactoryStats() {
-  const { totalCount } = useDAOCount();
+  const { count: totalCount } = useDAOCount();
   const { daos: allDAOs, isLoading } = useAllDAOs();
 
   const stats = useMemo(() => {

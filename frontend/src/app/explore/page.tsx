@@ -171,7 +171,7 @@ export default function ExplorePage() {
                 </div>
                 
                 <Button asChild className="w-full rounded-tally-button">
-                  <Link href={`/dao/${dao.id}`}>
+                  <Link href={`/dao/${dao.id}` as any}>
                     View DAO
                   </Link>
                 </Button>

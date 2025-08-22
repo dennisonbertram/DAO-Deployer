@@ -79,7 +79,6 @@ export function useTransactionWatcher(hash?: Hash) {
     error,
     isSuccess,
     isConfirmed: !!receipt && receipt.status === 'success',
-    confirmations: receipt?.confirmations || 0,
   };
 }
 
@@ -196,7 +195,7 @@ export function useGasEstimation() {
       try {
         const estimate = await publicClient.estimateGas(params);
         // Add 10% buffer for gas estimation
-        const bufferedEstimate = (estimate * 110n) / 100n;
+        const bufferedEstimate = (estimate * BigInt(110)) / BigInt(100);
         setGasEstimate(bufferedEstimate);
         return bufferedEstimate;
       } catch (error) {

@@ -1,12 +1,14 @@
 'use client'
 
 import { useState, useCallback, useMemo } from 'react';
+import { Hash } from 'viem';
 import { DAOConfig, ValidationError, DeploymentStep, DeploymentStatus, GasEstimate } from '@/types/deploy';
 import ProgressBar from '@/components/deploy/ProgressBar';
 import BasicInfo from './steps/BasicInfo';
 import GovernanceParams from './steps/GovernanceParams';
 import AdvancedSettings from './steps/AdvancedSettings';
 import ReviewDeploy from './steps/ReviewDeploy';
+import DeploymentModal from '@/components/deploy/DeploymentModal';
 
 const INITIAL_CONFIG: Partial<DAOConfig> = {
   name: '',
@@ -32,6 +34,8 @@ export default function DeployPage() {
   const [config, setConfig] = useState<Partial<DAOConfig>>(INITIAL_CONFIG);
   const [stepErrors, setStepErrors] = useState<Record<number, ValidationError[]>>({});
   const [deploymentStatus, setDeploymentStatus] = useState<DeploymentStatus>({ status: 'idle' });
+  const [showDeploymentModal, setShowDeploymentModal] = useState(false);
+  const [deploymentHash, setDeploymentHash] = useState<Hash | undefined>();
   
   // Mock gas estimate - in real implementation, this would come from Web3
   const gasEstimate: GasEstimate = {
@@ -96,30 +100,20 @@ export default function DeployPage() {
     }
   };
 
-  const handleDeploy = async () => {
-    setDeploymentStatus({ status: 'preparing' });
-    
-    // Mock deployment process
-    setTimeout(() => {
+  const handleDeploy = useCallback((deployedDAO?: { daoAddress: string; hash: string }) => {
+    if (deployedDAO) {
+      // Real deployment initiated
+      setDeploymentHash(deployedDAO.hash as Hash);
+      setShowDeploymentModal(true);
       setDeploymentStatus({ 
         status: 'deploying', 
-        transactionHash: '0x1234567890abcdef1234567890abcdef12345678' 
+        transactionHash: deployedDAO.hash 
       });
-      
-      // Simulate deployment completion
-      setTimeout(() => {
-        setDeploymentStatus({
-          status: 'success',
-          transactionHash: '0x1234567890abcdef1234567890abcdef12345678',
-          deployedAddresses: {
-            token: '0xtoken123456789',
-            governor: '0xgovernor123456789',
-            timelock: '0xtimelock123456789',
-          }
-        });
-      }, 5000);
-    }, 1000);
-  };
+    } else {
+      // This shouldn't happen with the real flow, but keep for safety
+      setDeploymentStatus({ status: 'preparing' });
+    }
+  }, []);
 
   const renderCurrentStep = () => {
     switch (currentStep) {
@@ -256,6 +250,25 @@ export default function DeployPage() {
             </button>
           )}
         </div>
+
+        {/* Deployment Modal */}
+        <DeploymentModal
+          isOpen={showDeploymentModal}
+          transactionHash={deploymentHash}
+          config={config as DAOConfig}
+          onClose={() => {
+            setShowDeploymentModal(false);
+            setDeploymentHash(undefined);
+          }}
+          onComplete={(deploymentData) => {
+            // Update deployment status with successful completion
+            setDeploymentStatus({
+              status: 'success',
+              transactionHash: deploymentData.transactionHash,
+              deployedAddresses: deploymentData.deployedAddresses
+            });
+          }}
+        />
       </div>
     </div>
   );

@@ -58,11 +58,11 @@ export const DEPLOYMENT_DEFAULTS = {
 
 // Gas limits for different operations (estimated)
 export const GAS_LIMITS = {
-  DEPLOY_DAO: 2_000_000n,
-  CREATE_PROPOSAL: 200_000n,
-  CAST_VOTE: 100_000n,
-  DELEGATE_VOTES: 80_000n,
-  EXECUTE_PROPOSAL: 300_000n,
+  DEPLOY_DAO: BigInt(2000000),
+  CREATE_PROPOSAL: BigInt(200000),
+  CAST_VOTE: BigInt(100000),
+  DELEGATE_VOTES: BigInt(80000),
+  EXECUTE_PROPOSAL: BigInt(300000),
 } as const;
 
 // Error messages for user-friendly display
