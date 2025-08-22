@@ -28,10 +28,39 @@ export default function BasicInfo({ config, onUpdate, onValidation }: BasicInfoP
     onUpdate({ [field]: value });
   };
 
+  // Test data for development
+  const fillTestData = () => {
+    onUpdate({
+      name: 'Test DAO',
+      description: 'A test DAO for development and testing purposes. This DAO demonstrates governance functionality and token-based voting.',
+      tokenName: 'Test DAO Token',
+      tokenSymbol: 'TEST',
+      initialSupply: '1000000',
+      initialRecipient: '0x742d35Cc6473D1C7Cac5BBcEf5bC8c8E4523ABcD' // Sample test address
+    });
+  };
+
+  // Check if we're in development environment
+  const isDevelopment = process.env.NODE_ENV === 'development' || 
+                       typeof window !== 'undefined' && 
+                       (window.location.hostname === 'localhost' || 
+                        window.location.hostname === '127.0.0.1');
+
   return (
     <div className="max-w-2xl mx-auto">
       <div className="mb-8">
-        <h3 className="text-2xl font-bold text-gray-900 mb-4">Basic Information</h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-2xl font-bold text-gray-900">Basic Information</h3>
+          {isDevelopment && (
+            <button
+              onClick={fillTestData}
+              className="px-3 py-1.5 text-xs bg-orange-100 text-orange-800 border border-orange-200 rounded-md hover:bg-orange-200 transition-colors"
+              type="button"
+            >
+              Fill Test Data
+            </button>
+          )}
+        </div>
         <p className="text-gray-600">
           Set up the fundamental details for your DAO, including name, description, and token configuration.
         </p>
