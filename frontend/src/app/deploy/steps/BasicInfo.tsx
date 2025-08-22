@@ -36,7 +36,8 @@ export default function BasicInfo({ config, onUpdate, onValidation }: BasicInfoP
       tokenName: 'Test DAO Token',
       tokenSymbol: 'TEST',
       initialSupply: '1000000',
-      initialRecipient: '0x742d35Cc6473D1C7Cac5BBcEf5bC8c8E4523ABcD' // Sample test address
+      initialRecipient: '0x742d35Cc6473D1C7Cac5BBcEf5bC8c8E4523ABcD', // Sample test address
+      network: 'localhost' // Set localhost network for development testing
     });
   };
 

@@ -84,7 +84,17 @@ export const GOVERNANCE_PRESETS = {
   },
 } as const;
 
-export const SUPPORTED_NETWORKS = [
+interface NetworkConfig {
+  id: string;
+  name: string;
+  chainId: number;
+  currency: string;
+  blockTime: number;
+  gasPrice: string;
+  developmentOnly?: boolean;
+}
+
+export const SUPPORTED_NETWORKS: readonly NetworkConfig[] = [
   {
     id: 'ethereum',
     name: 'Ethereum Mainnet',
@@ -132,6 +142,15 @@ export const SUPPORTED_NETWORKS = [
     currency: 'ETH',
     blockTime: 12,
     gasPrice: 'dynamic',
+  },
+  {
+    id: 'localhost',
+    name: 'Localhost (Anvil)',
+    chainId: 31337,
+    currency: 'ETH',
+    blockTime: 1,
+    gasPrice: 'dynamic',
+    developmentOnly: true, // Flag to indicate this should only show in development
   },
 ] as const;
 

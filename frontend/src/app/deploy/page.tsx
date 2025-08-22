@@ -11,6 +11,12 @@ import ReviewDeploy from './steps/ReviewDeploy';
 import DeploymentModal from '@/components/deploy/DeploymentModal';
 import { useFactory } from '@/hooks/contracts';
 
+// Check if we're in development to set default network
+const isDevelopment = process.env.NODE_ENV === 'development' || 
+                     (typeof window !== 'undefined' && 
+                      (window.location.hostname === 'localhost' || 
+                       window.location.hostname === '127.0.0.1'));
+
 const INITIAL_CONFIG: Partial<DAOConfig> = {
   name: '',
   description: '',
@@ -23,7 +29,7 @@ const INITIAL_CONFIG: Partial<DAOConfig> = {
   proposalThreshold: '1000',
   quorumPercentage: 10,
   timelockDelay: 86400, // 1 day
-  network: 'ethereum',
+  network: isDevelopment ? 'localhost' : 'ethereum', // Default to localhost in development
   gasOptimization: 'standard',
   enableGaslessVoting: false,
   enableTokenBurning: false,

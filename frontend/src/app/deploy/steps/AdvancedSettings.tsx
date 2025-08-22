@@ -30,6 +30,21 @@ export default function AdvancedSettings({ config, onUpdate, onValidation }: Adv
 
   const selectedNetwork = SUPPORTED_NETWORKS.find(n => n.id === config.network);
 
+  // Check if we're in development environment
+  const isDevelopment = process.env.NODE_ENV === 'development' || 
+                       typeof window !== 'undefined' && 
+                       (window.location.hostname === 'localhost' || 
+                        window.location.hostname === '127.0.0.1');
+
+  // Filter networks based on environment
+  const availableNetworks = SUPPORTED_NETWORKS.filter(network => {
+    // If it's a development-only network, only show in development
+    if (network.developmentOnly) {
+      return isDevelopment;
+    }
+    return true;
+  });
+
   return (
     <div className="max-w-2xl mx-auto">
       <div className="mb-8">
@@ -49,7 +64,7 @@ export default function AdvancedSettings({ config, onUpdate, onValidation }: Adv
           tooltip="Your DAO will have the same address across all networks due to CREATE2 deployment"
         >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {SUPPORTED_NETWORKS.map((network) => (
+            {availableNetworks.map((network) => (
               <label
                 key={network.id}
                 className={`relative flex items-center p-4 border rounded-lg cursor-pointer transition-all ${
