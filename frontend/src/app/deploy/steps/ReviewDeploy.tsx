@@ -4,7 +4,8 @@ import { DAOConfig, ValidationError, SUPPORTED_NETWORKS, GasEstimate, Deployment
 import { validateComplete, formatTime, formatTimeFromSeconds } from '@/lib/validation/deploy';
 import { useState, useEffect } from 'react';
 import { useAccount } from 'wagmi';
-import { Address } from 'viem';
+import { Address, getAddress, isAddress } from 'viem';
+import { useToast } from '@/hooks/use-toast';
 
 interface ReviewDeployProps {
   config: DAOConfig;
@@ -35,6 +36,7 @@ export default function ReviewDeploy({
   const [errors, setErrors] = useState<ValidationError[]>([]);
   const [tosAccepted, setTosAccepted] = useState(false);
   const [understandsIrreversible, setUnderstandsIrreversible] = useState(false);
+  const { toast } = useToast();
 
   const selectedNetwork = SUPPORTED_NETWORKS.find(n => n.id === config.network);
   
@@ -49,6 +51,12 @@ export default function ReviewDeploy({
 
   // Handle deployment action
   const handleDeploy = () => {
+    console.info('[Deploy] Clicked', {
+      hasDeployDAO: !!deployDAO,
+      hasAccount: !!account,
+      isSupported,
+      isDeploying,
+    });
     if (!deployDAO || !account || !isSupported) {
       console.error('Cannot deploy: missing requirements', {
         deployDAO: !!deployDAO,
@@ -57,6 +65,18 @@ export default function ReviewDeploy({
       });
       return;
     }
+
+    // Validate and normalize recipient address
+    if (!isAddress(config.initialRecipient as `0x${string}`, { strict: false })) {
+      console.error('[Deploy] Invalid recipient address', { recipient: config.initialRecipient });
+      toast({
+        title: 'Invalid recipient address',
+        description: 'Please enter a valid Ethereum address for the initial recipient.',
+        variant: 'destructive',
+      } as any);
+      return;
+    }
+    const normalizedRecipient = getAddress(config.initialRecipient as `0x${string}`);
 
     // Convert config to the format expected by the smart contract
     const contractConfig = {
@@ -70,8 +90,15 @@ export default function ReviewDeploy({
       timelockDelay: BigInt(config.timelockDelay),
     };
 
-    // Start the deployment - this will trigger the wallet
-    deployDAO(contractConfig, config.initialRecipient as Address);
+    console.info('[Deploy] Invoking deployDAO', {
+      recipient: normalizedRecipient,
+    });
+    try {
+      // Start the deployment - this should trigger the wallet
+      deployDAO(contractConfig, normalizedRecipient as Address);
+    } catch (err) {
+      console.error('[Deploy] deployDAO threw synchronously', err);
+    }
   };
 
   const canDeploy = errors.length === 0 && tosAccepted && understandsIrreversible && !isDeploying && account && isSupported;

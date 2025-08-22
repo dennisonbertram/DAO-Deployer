@@ -4,11 +4,6 @@ import { createPublicClient, createWalletClient, http, parseEther, Address } fro
 import { privateKeyToAccount } from 'viem/accounts';
 import { localhost } from '@/lib/contracts/addresses';
 
-// Only allow this endpoint in development
-if (process.env.NODE_ENV === 'production') {
-  throw new Error('Development funding endpoint should not be available in production');
-}
-
 // Anvil default account private key (for development only)
 // This is the first default account that Anvil creates
 const ANVIL_PRIVATE_KEY = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
@@ -25,6 +20,11 @@ const walletClient = createWalletClient({
 });
 
 export async function POST(request: NextRequest) {
+  // Only allow this endpoint in development
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Not available in production' }, { status: 404 });
+  }
+  
   try {
     // Parse the request body
     const { walletAddress } = await request.json();

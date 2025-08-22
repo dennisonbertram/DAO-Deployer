@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react'
 import { Hash } from 'viem'
-import { useWaitForTransactionReceipt } from 'wagmi'
+import { useWaitForTransactionReceipt, useChainId } from 'wagmi'
 import { DAOConfig, DeploymentStatus } from '@/types/deploy'
 
 interface DeployedAddresses {
@@ -37,6 +37,7 @@ export default function DeploymentModal({
   const [deploymentStep, setDeploymentStep] = useState<'preparing' | 'submitting' | 'mining' | 'success' | 'error'>('preparing')
   const [deployedAddresses, setDeployedAddresses] = useState<DeployedAddresses | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const chainId = useChainId()
 
   // Watch for transaction receipt
   const { 
@@ -46,10 +47,24 @@ export default function DeploymentModal({
     error: receiptErrorDetails
   } = useWaitForTransactionReceipt({
     hash: transactionHash,
+    chainId,
+    confirmations: 1,
     query: {
       enabled: !!transactionHash && deploymentStep === 'mining'
     }
   })
+
+  useEffect(() => {
+    if (transactionHash) {
+      console.info('[DeploymentModal] Waiting for receipt', { chainId, transactionHash })
+    }
+  }, [transactionHash, chainId])
+
+  useEffect(() => {
+    if (isWaitingForReceipt) {
+      console.info('[DeploymentModal] Still waiting for receipt...')
+    }
+  }, [isWaitingForReceipt])
 
   // Update deployment step based on transaction status
   useEffect(() => {
@@ -62,6 +77,7 @@ export default function DeploymentModal({
   // Handle successful transaction
   useEffect(() => {
     if (receipt && deploymentStep === 'mining') {
+      console.info('[DeploymentModal] Receipt received')
       // Parse deployment addresses from receipt logs
       // In a real implementation, you would parse the actual contract deployment logs
       const mockAddresses: DeployedAddresses = {
@@ -90,6 +106,7 @@ export default function DeploymentModal({
   // Handle transaction errors
   useEffect(() => {
     if (receiptError && receiptErrorDetails) {
+      console.error('[DeploymentModal] Receipt error', receiptErrorDetails)
       setError(receiptErrorDetails.message)
       setDeploymentStep('error')
     }

@@ -55,24 +55,27 @@ export default function DeployPage() {
     isSupported
   } = useFactory();
 
-  // Watch for deployment start and show modal
+  // Open modal only after wallet confirmation (when a tx hash exists)
   useEffect(() => {
-    if (isDeploying && !showDeploymentModal) {
-      setShowDeploymentModal(true);
-      setDeploymentStatus({ status: 'preparing' });
-    }
-  }, [isDeploying, showDeploymentModal]);
-
-  // Update deployment hash when factory provides it
-  useEffect(() => {
-    if (deployHash && showDeploymentModal) {
+    if (deployHash) {
+      console.info('[DeployPage] Received deploy hash, opening modal', { deployHash });
+      if (!showDeploymentModal) setShowDeploymentModal(true);
       setDeploymentHash(deployHash as Hash);
-      setDeploymentStatus({ 
-        status: 'deploying', 
-        transactionHash: deployHash 
-      });
+      setDeploymentStatus({ status: 'deploying', transactionHash: deployHash });
     }
   }, [deployHash, showDeploymentModal]);
+
+  // Log isDeploying / error transitions
+  useEffect(() => {
+    if (isDeploying) {
+      console.info('[DeployPage] isDeploying true');
+    }
+  }, [isDeploying]);
+  useEffect(() => {
+    if (deployError) {
+      console.error('[DeployPage] deployError', deployErrorDetails);
+    }
+  }, [deployError, deployErrorDetails]);
   
   // Mock gas estimate - in real implementation, this would come from Web3
   const gasEstimate: GasEstimate = {
@@ -156,7 +159,7 @@ export default function DeployPage() {
 
   const handleDeploy = useCallback(() => {
     // This is now just a placeholder - the modal will show automatically when isDeploying becomes true
-    console.log('Deploy triggered - modal will show when isDeploying becomes true');
+    console.info('[DeployPage] Deploy triggered');
   }, []);
 
   const renderCurrentStep = () => {

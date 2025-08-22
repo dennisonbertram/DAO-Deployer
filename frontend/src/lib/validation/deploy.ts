@@ -1,4 +1,5 @@
 import { DAOConfig, ValidationError } from '@/types/deploy';
+import { isAddress } from 'viem';
 
 export function validateBasicInfo(config: Partial<DAOConfig>): ValidationError[] {
   const errors: ValidationError[] = [];
@@ -139,7 +140,8 @@ export function validateComplete(config: DAOConfig): ValidationError[] {
 }
 
 function isValidEthereumAddress(address: string): boolean {
-  return /^0x[a-fA-F0-9]{40}$/.test(address);
+  // Accepts both checksummed and lowercase addresses
+  return isAddress(address as `0x${string}`, { strict: false });
 }
 
 export function formatTime(blocks: number, blockTime: number = 12): string {

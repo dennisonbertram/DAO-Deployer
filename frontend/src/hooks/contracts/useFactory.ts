@@ -1,7 +1,7 @@
 // Factory contract hooks for DAO deployment and discovery
 'use client';
 
-import { useReadContract, useWriteContract, useWatchContractEvent, useChainId } from 'wagmi';
+import { useReadContract, useWriteContract, useWatchContractEvent, useChainId, useAccount, usePublicClient } from 'wagmi';
 import { useEffect, useMemo, useState } from 'react';
 import { Address, Hash } from 'viem';
 
@@ -27,6 +27,7 @@ function useFactoryAddress() {
 
   useEffect(() => {
     async function loadAddress() {
+      console.info('[Factory] Resolving factory address', { chainId });
       if (!isSupportedChain(chainId)) {
         setFactoryAddress(undefined);
         setIsLoading(false);
@@ -37,10 +38,12 @@ function useFactoryAddress() {
         if (chainId === localhost.id) {
           // For localhost, use async loading to get dynamic addresses
           const address = await getContractAddressAsync(chainId, 'factory');
+          console.info('[Factory] Loaded local factory address', { address });
           setFactoryAddress(address);
         } else {
           // For other chains, use static configuration
           const address = getContractAddress(chainId, 'factory');
+          console.info('[Factory] Loaded factory address', { address });
           setFactoryAddress(address);
         }
       } catch (error) {
@@ -153,6 +156,9 @@ export function useDAOCount() {
  */
 export function useDeployDAO() {
   const { factoryAddress } = useFactoryAddress();
+  const chainId = useChainId();
+  const { address: account } = useAccount();
+  const publicClient = usePublicClient();
 
   const {
     writeContract,
@@ -166,16 +172,34 @@ export function useDeployDAO() {
   const deployDAO = useMemo(() => {
     if (!factoryAddress) return undefined;
     
-    return (config: ContractDAOConfig, recipient: Address) => {
+    return async (config: ContractDAOConfig, recipient: Address) => {
+      console.info('[Factory] Calling writeContract(deployDAO)', {
+        factoryAddress,
+        chainId,
+        account,
+        recipient,
+      });
+      let nonce: number | undefined = undefined;
+      try {
+        if (account && publicClient) {
+          nonce = await publicClient.getTransactionCount({ address: account as any, blockTag: 'pending' });
+          console.info('[Factory] Using on-chain pending nonce', { nonce });
+        }
+      } catch (e) {
+        console.warn('[Factory] Failed to fetch pending nonce, letting wallet set it');
+      }
       writeContract({
         address: factoryAddress,
         abi: FACTORY_ABI,
         functionName: 'deployDAO',
         args: [config, recipient],
         gas: GAS_LIMITS.DEPLOY_DAO,
+        chainId,
+        account,
+        nonce,
       } as any);
     };
-  }, [factoryAddress, writeContract]);
+  }, [factoryAddress, writeContract, chainId, account, publicClient]);
 
   return {
     deployDAO,
