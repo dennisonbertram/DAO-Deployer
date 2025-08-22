@@ -1,0 +1,38 @@
+# Compiler files
+cache/
+out/
+*.tsbuildinfo
+
+# Dependencies
+node_modules/
+lib/
+
+# Environment variables
+.env
+.env.local
+.env.test
+
+# Coverage reports
+coverage/
+coverage.json
+
+# Gas reports
+gasReporterOutput.json
+
+# Typechain
+typechain/
+typechain-types/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Broadcast logs
+broadcast/

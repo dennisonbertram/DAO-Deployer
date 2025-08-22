@@ -1,0 +1,26 @@
+{
+  "name": "@tally/dao-deployer-contracts",
+  "version": "1.0.0",
+  "description": "Smart contracts for sovereign DAO deployment",
+  "private": true,
+  "scripts": {
+    "build": "forge build",
+    "test": "forge test",
+    "test:gas": "forge test --gas-report",
+    "clean": "forge clean",
+    "lint": "forge fmt --check",
+    "format": "forge fmt",
+    "deploy": "forge script script/DeterministicDeploy.s.sol:DeterministicDeploy",
+    "predict": "forge script script/AddressPredictor.s.sol:AddressPredictor",
+    "deploy:local": "./deploy-local.sh",
+    "anvil": "anvil --host 0.0.0.0 --port 8545"
+  },
+  "devDependencies": {},
+  "keywords": [
+    "solidity",
+    "smart-contracts",
+    "dao",
+    "governance",
+    "foundry"
+  ]
+}

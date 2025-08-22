@@ -1,0 +1,99 @@
+{
+  "library": "OpenZeppelin Contracts",
+  "version": "5.x",
+  "last_updated": "2025-08-21",
+  "topics": {
+    "proxy_patterns": {
+      "transparent": {
+        "contract": "TransparentUpgradeableProxy",
+        "gas_cost": "High deployment, High runtime",
+        "upgrade_control": "External ProxyAdmin",
+        "use_case": "Traditional organizations with clear admin hierarchies",
+        "keywords": ["transparent", "proxy", "admin", "upgrade", "external"]
+      },
+      "uups": {
+        "contract": "UUPSUpgradeable",
+        "gas_cost": "Medium deployment, Low runtime",
+        "upgrade_control": "Implementation contract",
+        "use_case": "Modern DAOs with flexible upgrade authorization",
+        "keywords": ["uups", "universal", "upgradeable", "implementation", "gas-efficient"]
+      },
+      "beacon": {
+        "contract": "BeaconProxy",
+        "gas_cost": "Medium deployment, Medium runtime",
+        "upgrade_control": "Beacon owner",
+        "use_case": "Factory systems with coordinated upgrades",
+        "keywords": ["beacon", "coordinated", "factory", "multiple", "instances"]
+      },
+      "minimal": {
+        "contract": "Clones",
+        "gas_cost": "Very low deployment, Low runtime",
+        "upgrade_control": "None - immutable",
+        "use_case": "High-volume deployments without upgrade needs",
+        "keywords": ["minimal", "clone", "erc1167", "immutable", "cheap"]
+      }
+    },
+    "dao_components": {
+      "token": {
+        "recommended_pattern": "Beacon Proxy",
+        "contracts": ["ERC20Votes", "ERC20VotesUpgradeable"],
+        "considerations": ["delegation_tracking", "checkpoint_preservation", "voting_power_consistency"],
+        "keywords": ["token", "erc20", "votes", "delegation", "checkpoints"]
+      },
+      "governor": {
+        "recommended_pattern": "UUPS or Beacon",
+        "contracts": ["Governor", "GovernorUpgradeable"],
+        "considerations": ["proposal_history", "voting_parameters", "timelock_integration"],
+        "keywords": ["governor", "governance", "proposals", "voting", "timelock"]
+      },
+      "timelock": {
+        "recommended_pattern": "UUPS",
+        "contracts": ["TimelockController", "TimelockControllerUpgradeable"],
+        "considerations": ["pending_transactions", "role_management", "delay_parameters"],
+        "keywords": ["timelock", "delay", "roles", "executor", "proposer"]
+      }
+    },
+    "security": {
+      "initialization": {
+        "patterns": ["disable_initializers", "initializer_modifier", "reinitializer"],
+        "keywords": ["initialize", "constructor", "disable", "modifier"]
+      },
+      "storage_layout": {
+        "rules": ["append_only", "no_modification", "gap_variables"],
+        "keywords": ["storage", "layout", "slots", "compatibility", "gaps"]
+      },
+      "authorization": {
+        "patterns": ["owner_controlled", "multisig_controlled", "dao_controlled", "timelock_controlled"],
+        "keywords": ["authorization", "access_control", "owner", "multisig", "governance"]
+      }
+    },
+    "best_practices": {
+      "factory_design": {
+        "recommendations": ["hybrid_approach", "beacon_for_coordinated", "uups_for_individual"],
+        "keywords": ["factory", "deployment", "hybrid", "coordination"]
+      },
+      "gas_optimization": {
+        "techniques": ["pattern_selection", "minimal_for_simple", "beacon_for_families"],
+        "keywords": ["gas", "optimization", "efficiency", "cost"]
+      },
+      "upgrade_safety": {
+        "checks": ["storage_compatibility", "initialization_protection", "authorization_verification"],
+        "keywords": ["safety", "compatibility", "verification", "protection"]
+      }
+    }
+  },
+  "code_examples": {
+    "transparent_deployment": "/docs/libraries/openzeppelin/examples/transparent-proxy.sol",
+    "uups_implementation": "/docs/libraries/openzeppelin/examples/uups-dao.sol",
+    "beacon_factory": "/docs/libraries/openzeppelin/examples/beacon-factory.sol",
+    "minimal_clone": "/docs/libraries/openzeppelin/examples/minimal-clone.sol",
+    "dao_factory_hybrid": "/docs/libraries/openzeppelin/examples/dao-factory.sol"
+  },
+  "references": {
+    "eip1967": "https://eips.ethereum.org/EIPS/eip-1967",
+    "eip1822": "https://eips.ethereum.org/EIPS/eip-1822",
+    "eip1167": "https://eips.ethereum.org/EIPS/eip-1167",
+    "oz_docs": "https://docs.openzeppelin.com/contracts/5.x/api/proxy",
+    "upgrade_guide": "https://docs.openzeppelin.com/learn/upgrading-smart-contracts"
+  }
+}

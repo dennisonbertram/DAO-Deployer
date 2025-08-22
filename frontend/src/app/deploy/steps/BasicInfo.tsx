@@ -1,0 +1,175 @@
+'use client'
+
+import { DAOConfig, ValidationError } from '@/types/deploy';
+import { validateBasicInfo } from '@/lib/validation/deploy';
+import FormField from '@/components/deploy/FormField';
+import { useState, useEffect } from 'react';
+
+interface BasicInfoProps {
+  config: Partial<DAOConfig>;
+  onUpdate: (updates: Partial<DAOConfig>) => void;
+  onValidation: (errors: ValidationError[]) => void;
+}
+
+export default function BasicInfo({ config, onUpdate, onValidation }: BasicInfoProps) {
+  const [errors, setErrors] = useState<ValidationError[]>([]);
+
+  useEffect(() => {
+    const newErrors = validateBasicInfo(config);
+    setErrors(newErrors);
+    onValidation(newErrors);
+  }, [config, onValidation]);
+
+  const getError = (field: keyof DAOConfig) => {
+    return errors.find(error => error.field === field)?.message;
+  };
+
+  const handleInputChange = (field: keyof DAOConfig, value: string) => {
+    onUpdate({ [field]: value });
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto">
+      <div className="mb-8">
+        <h3 className="text-2xl font-bold text-gray-900 mb-4">Basic Information</h3>
+        <p className="text-gray-600">
+          Set up the fundamental details for your DAO, including name, description, and token configuration.
+        </p>
+      </div>
+
+      <div className="space-y-6">
+        <FormField
+          label="DAO Name"
+          description="Choose a descriptive name for your DAO that reflects its purpose and community"
+          error={getError('name')}
+          required
+          tooltip="This will be displayed across the platform and cannot be changed after deployment"
+        >
+          <input
+            type="text"
+            className={`input ${getError('name') ? 'border-red-300 focus-visible:ring-red-500' : ''}`}
+            placeholder="e.g., Awesome Community DAO"
+            value={config.name || ''}
+            onChange={(e) => handleInputChange('name', e.target.value)}
+            maxLength={50}
+          />
+          <div className="text-xs text-gray-500 mt-1">
+            {config.name?.length || 0}/50 characters
+          </div>
+        </FormField>
+
+        <FormField
+          label="Description"
+          description="Provide a brief description of your DAO's mission and goals (optional)"
+          error={getError('description')}
+          tooltip="This helps potential members understand what your DAO is about"
+        >
+          <textarea
+            className={`input min-h-[100px] resize-none ${getError('description') ? 'border-red-300 focus-visible:ring-red-500' : ''}`}
+            placeholder="Describe your DAO's purpose, goals, and community..."
+            value={config.description || ''}
+            onChange={(e) => handleInputChange('description', e.target.value)}
+            maxLength={500}
+            rows={4}
+          />
+          <div className="text-xs text-gray-500 mt-1">
+            {config.description?.length || 0}/500 characters
+          </div>
+        </FormField>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <FormField
+            label="Token Name"
+            description="The full name of your governance token"
+            error={getError('tokenName')}
+            required
+            tooltip="This appears in wallets and token lists"
+          >
+            <input
+              type="text"
+              className={`input ${getError('tokenName') ? 'border-red-300 focus-visible:ring-red-500' : ''}`}
+              placeholder="e.g., Awesome DAO Token"
+              value={config.tokenName || ''}
+              onChange={(e) => handleInputChange('tokenName', e.target.value)}
+              maxLength={30}
+            />
+          </FormField>
+
+          <FormField
+            label="Token Symbol"
+            description="A short abbreviation for your token"
+            error={getError('tokenSymbol')}
+            required
+            tooltip="Typically 2-5 uppercase letters, like ETH or USDC"
+          >
+            <input
+              type="text"
+              className={`input uppercase ${getError('tokenSymbol') ? 'border-red-300 focus-visible:ring-red-500' : ''}`}
+              placeholder="e.g., ADT"
+              value={config.tokenSymbol || ''}
+              onChange={(e) => handleInputChange('tokenSymbol', e.target.value.toUpperCase())}
+              maxLength={10}
+            />
+          </FormField>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <FormField
+            label="Initial Supply"
+            description="Total number of tokens to mint at launch"
+            error={getError('initialSupply')}
+            required
+            tooltip="This determines the total voting power. Can be any positive number."
+          >
+            <div className="relative">
+              <input
+                type="number"
+                className={`input ${getError('initialSupply') ? 'border-red-300 focus-visible:ring-red-500' : ''}`}
+                placeholder="1000000"
+                value={config.initialSupply || ''}
+                onChange={(e) => handleInputChange('initialSupply', e.target.value)}
+                min="0"
+                step="any"
+              />
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500">
+                tokens
+              </div>
+            </div>
+          </FormField>
+
+          <FormField
+            label="Initial Recipient"
+            description="Address that will receive all initial tokens"
+            error={getError('initialRecipient')}
+            required
+            tooltip="This address will have full voting power initially. Usually the deployer's address."
+          >
+            <input
+              type="text"
+              className={`input font-mono text-sm ${getError('initialRecipient') ? 'border-red-300 focus-visible:ring-red-500' : ''}`}
+              placeholder="0x1234...5678"
+              value={config.initialRecipient || ''}
+              onChange={(e) => handleInputChange('initialRecipient', e.target.value)}
+            />
+          </FormField>
+        </div>
+
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex">
+            <svg className="w-5 h-5 text-blue-400 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div>
+              <h4 className="text-sm font-medium text-blue-800 mb-1">Important Notes</h4>
+              <ul className="text-sm text-blue-700 space-y-1 list-disc list-inside">
+                <li>DAO name and token details cannot be changed after deployment</li>
+                <li>The initial recipient will have full voting power until tokens are distributed</li>
+                <li>Consider distributing tokens to multiple addresses for better decentralization</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

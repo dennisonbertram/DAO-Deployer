@@ -1,0 +1,48 @@
+{
+  "name": "@tally/dao-deployer",
+  "version": "1.0.0",
+  "description": "Sovereign DAO deployment platform with deterministic addresses",
+  "private": true,
+  "scripts": {
+    "dev": "npm run dev --workspace=frontend",
+    "dev:local": "./scripts/dev-local.sh",
+    "dev:local:watch": "./scripts/dev-local-watch.sh",
+    "build": "npm run build --workspaces",
+    "test": "npm run test --workspaces",
+    "lint": "npm run lint --workspaces",
+    "clean": "npm run clean --workspaces",
+    "contracts:build": "npm run build --workspace=contracts",
+    "contracts:test": "npm run test --workspace=contracts",
+    "contracts:deploy:local": "npm run deploy:local --workspace=contracts",
+    "contracts:anvil": "npm run anvil --workspace=contracts",
+    "contracts:watch": "./scripts/watch-contracts.sh",
+    "frontend:dev": "npm run dev --workspace=frontend",
+    "frontend:build": "npm run build --workspace=frontend"
+  },
+  "workspaces": [
+    "contracts",
+    "frontend"
+  ],
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/dao-deployer"
+  },
+  "keywords": [
+    "dao",
+    "governance",
+    "ethereum",
+    "smart-contracts",
+    "web3",
+    "defi"
+  ],
+  "author": "Your Team",
+  "license": "MIT"
+}

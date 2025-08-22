@@ -1,0 +1,70 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Fonts are now loaded via Next.js font optimization in layout.tsx */
+
+@layer base {
+  :root {
+    /* Tally design tokens mapped to shadcn/ui semantic tokens */
+    --background: 217 33% 98%; /* Tally gray.1 #fcfcfd */
+    --foreground: 215 25% 27%; /* Tally gray.9 #1d2939 */
+    --card: 0 0% 100%; /* Tally gray.white #ffffff */
+    --card-foreground: 215 25% 27%; /* Tally gray.9 #1d2939 */
+    --popover: 0 0% 100%; /* Tally gray.white #ffffff */
+    --popover-foreground: 215 25% 27%; /* Tally gray.9 #1d2939 */
+    --primary: 246 48% 59%; /* Tally purple.6 #725bff - brand color */
+    --primary-foreground: 0 0% 100%; /* white text on brand */
+    --secondary: 210 16% 93%; /* Tally gray.2 #f2f4f7 */
+    --secondary-foreground: 217 19% 35%; /* Tally gray.8 #344054 */
+    --muted: 210 16% 93%; /* Tally gray.2 #f2f4f7 */
+    --muted-foreground: 215 16% 47%; /* Tally gray.6 #667085 */
+    --accent: 204 20% 94%; /* Tally gray.3 #eaecf0 */
+    --accent-foreground: 217 19% 35%; /* Tally gray.8 #344054 */
+    --destructive: 350 89% 60%; /* Tally red.6 #f44061 */
+    --destructive-foreground: 0 0% 100%; /* white text on red */
+    --border: 204 20% 94%; /* Tally gray.3 #eaecf0 */
+    --input: 204 20% 94%; /* Tally gray.3 #eaecf0 */
+    --ring: 246 48% 59%; /* Tally purple.6 #725bff */
+    --radius: 0.75rem; /* Tally container radius 12px */
+  }
+
+  .dark {
+    /* Dark mode using Tally semantic tokens */
+    --background: 216 50% 12%; /* Tally gray.10 #101828 */
+    --foreground: 0 0% 100%; /* Tally gray.white #ffffff */
+    --card: 215 25% 27%; /* Tally gray.9 #1d2939 */
+    --card-foreground: 0 0% 100%; /* Tally gray.white #ffffff */
+    --popover: 215 25% 27%; /* Tally gray.9 #1d2939 */
+    --popover-foreground: 0 0% 100%; /* Tally gray.white #ffffff */
+    --primary: 246 48% 59%; /* Tally purple.6 #725bff - consistent brand */
+    --primary-foreground: 0 0% 100%; /* white text on brand */
+    --secondary: 215 25% 27%; /* Tally gray.9 #1d2939 */
+    --secondary-foreground: 0 0% 100%; /* Tally gray.white #ffffff */
+    --muted: 217 19% 35%; /* Tally gray.8 #344054 */
+    --muted-foreground: 215 16% 47%; /* Tally gray.6 #667085 */
+    --accent: 217 19% 35%; /* Tally gray.8 #344054 */
+    --accent-foreground: 0 0% 100%; /* Tally gray.white #ffffff */
+    --destructive: 350 89% 60%; /* Tally red.6 #f44061 */
+    --destructive-foreground: 0 0% 100%; /* white text on red */
+    --border: 217 19% 35%; /* Tally gray.8 #344054 */
+    --input: 217 19% 35%; /* Tally gray.8 #344054 */
+    --ring: 246 48% 59%; /* Tally purple.6 #725bff */
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
