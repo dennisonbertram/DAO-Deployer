@@ -10,7 +10,7 @@ import { Address } from 'viem';
 interface ReviewDeployProps {
   config: DAOConfig;
   onValidation: (errors: ValidationError[]) => void;
-  onDeploy: (deployedDAO?: { daoAddress: Address; hash: string }) => void;
+  onDeploy: () => void;
   gasEstimate?: GasEstimate;
   deploymentStatus: DeploymentStatus;
 }
@@ -101,7 +101,12 @@ export default function ReviewDeploy({
       timelockDelay: BigInt(config.timelockDelay),
     };
 
+    // Start the deployment
     deployDAO(contractConfig, config.initialRecipient as Address);
+    
+    // Trigger the modal immediately when deployment starts
+    // We'll pass a mock hash that will be replaced when the real transaction is submitted
+    onDeploy();
   };
 
   const canDeploy = errors.length === 0 && tosAccepted && understandsIrreversible && !isDeploying && account && isSupported;

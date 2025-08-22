@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { Hash } from 'viem';
 import { DAOConfig, ValidationError, DeploymentStep, DeploymentStatus, GasEstimate } from '@/types/deploy';
 import ProgressBar from '@/components/deploy/ProgressBar';
@@ -9,6 +9,7 @@ import GovernanceParams from './steps/GovernanceParams';
 import AdvancedSettings from './steps/AdvancedSettings';
 import ReviewDeploy from './steps/ReviewDeploy';
 import DeploymentModal from '@/components/deploy/DeploymentModal';
+import { useFactory } from '@/hooks/contracts';
 
 const INITIAL_CONFIG: Partial<DAOConfig> = {
   name: '',
@@ -36,6 +37,20 @@ export default function DeployPage() {
   const [deploymentStatus, setDeploymentStatus] = useState<DeploymentStatus>({ status: 'idle' });
   const [showDeploymentModal, setShowDeploymentModal] = useState(false);
   const [deploymentHash, setDeploymentHash] = useState<Hash | undefined>();
+
+  // Get deployment state from factory hooks
+  const { deployHash, isDeploying, deploySuccess, deployError } = useFactory();
+
+  // Update deployment hash when factory provides it
+  useEffect(() => {
+    if (deployHash && showDeploymentModal) {
+      setDeploymentHash(deployHash as Hash);
+      setDeploymentStatus({ 
+        status: 'deploying', 
+        transactionHash: deployHash 
+      });
+    }
+  }, [deployHash, showDeploymentModal]);
   
   // Mock gas estimate - in real implementation, this would come from Web3
   const gasEstimate: GasEstimate = {
@@ -100,19 +115,10 @@ export default function DeployPage() {
     }
   };
 
-  const handleDeploy = useCallback((deployedDAO?: { daoAddress: string; hash: string }) => {
-    if (deployedDAO) {
-      // Real deployment initiated
-      setDeploymentHash(deployedDAO.hash as Hash);
-      setShowDeploymentModal(true);
-      setDeploymentStatus({ 
-        status: 'deploying', 
-        transactionHash: deployedDAO.hash 
-      });
-    } else {
-      // This shouldn't happen with the real flow, but keep for safety
-      setDeploymentStatus({ status: 'preparing' });
-    }
+  const handleDeploy = useCallback(() => {
+    // Show the modal immediately when deployment is triggered
+    setShowDeploymentModal(true);
+    setDeploymentStatus({ status: 'preparing' });
   }, []);
 
   const renderCurrentStep = () => {
