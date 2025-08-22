@@ -66,12 +66,10 @@ export default function ReviewDeploy({
       timelockDelay: BigInt(config.timelockDelay),
     };
 
-    // Start the deployment
+    // Start the deployment - this will trigger the wallet
     deployDAO(contractConfig, config.initialRecipient as Address);
     
-    // Trigger the modal immediately when deployment starts
-    // We'll pass a mock hash that will be replaced when the real transaction is submitted
-    onDeploy();
+    // Don't show modal immediately - let the main page watch for deployment state changes
   };
 
   const canDeploy = errors.length === 0 && tosAccepted && understandsIrreversible && !isDeploying && account && isSupported;

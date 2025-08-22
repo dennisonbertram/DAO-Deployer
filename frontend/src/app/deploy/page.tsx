@@ -49,6 +49,14 @@ export default function DeployPage() {
     isSupported
   } = useFactory();
 
+  // Watch for deployment start and show modal
+  useEffect(() => {
+    if (isDeploying && !showDeploymentModal) {
+      setShowDeploymentModal(true);
+      setDeploymentStatus({ status: 'preparing' });
+    }
+  }, [isDeploying, showDeploymentModal]);
+
   // Update deployment hash when factory provides it
   useEffect(() => {
     if (deployHash && showDeploymentModal) {
@@ -124,9 +132,8 @@ export default function DeployPage() {
   };
 
   const handleDeploy = useCallback(() => {
-    // Show the modal immediately when deployment is triggered
-    setShowDeploymentModal(true);
-    setDeploymentStatus({ status: 'preparing' });
+    // This is now just a placeholder - the modal will show automatically when isDeploying becomes true
+    console.log('Deploy triggered - modal will show when isDeploying becomes true');
   }, []);
 
   const renderCurrentStep = () => {
