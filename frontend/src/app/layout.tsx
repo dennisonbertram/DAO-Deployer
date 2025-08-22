@@ -2,6 +2,8 @@ import type { Metadata } from 'next'
 import { DM_Sans, Inter } from 'next/font/google'
 import './globals.css'
 import { cn } from '@/lib/utils'
+import { WalletProvider } from '@/providers/WalletProvider'
+import { WalletHeader } from '@/components/WalletHeader'
 
 const dmSans = DM_Sans({ 
   subsets: ['latin'],
@@ -33,7 +35,12 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={cn('min-h-screen bg-background font-sans antialiased', dmSans.variable, inter.variable)}>
-        {children}
+        <WalletProvider>
+          <WalletHeader />
+          <main className="min-h-screen">
+            {children}
+          </main>
+        </WalletProvider>
       </body>
     </html>
   )
