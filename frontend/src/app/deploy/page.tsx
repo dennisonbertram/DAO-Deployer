@@ -121,6 +121,23 @@ export default function DeployPage() {
     setStepErrors(prev => ({ ...prev, [step]: errors }));
   }, []);
 
+  // Create stable validation callbacks for each step
+  const handleStep1Validation = useCallback((errors: ValidationError[]) => {
+    handleStepValidation(1, errors);
+  }, [handleStepValidation]);
+
+  const handleStep2Validation = useCallback((errors: ValidationError[]) => {
+    handleStepValidation(2, errors);
+  }, [handleStepValidation]);
+
+  const handleStep3Validation = useCallback((errors: ValidationError[]) => {
+    handleStepValidation(3, errors);
+  }, [handleStepValidation]);
+
+  const handleStep4Validation = useCallback((errors: ValidationError[]) => {
+    handleStepValidation(4, errors);
+  }, [handleStepValidation]);
+
   const canProceed = (step: number) => {
     return stepErrors[step]?.length === 0;
   };
@@ -149,7 +166,7 @@ export default function DeployPage() {
           <BasicInfo
             config={config}
             onUpdate={updateConfig}
-            onValidation={(errors) => handleStepValidation(1, errors)}
+            onValidation={handleStep1Validation}
           />
         );
       case 2:
@@ -157,7 +174,7 @@ export default function DeployPage() {
           <GovernanceParams
             config={config}
             onUpdate={updateConfig}
-            onValidation={(errors) => handleStepValidation(2, errors)}
+            onValidation={handleStep2Validation}
           />
         );
       case 3:
@@ -165,14 +182,14 @@ export default function DeployPage() {
           <AdvancedSettings
             config={config}
             onUpdate={updateConfig}
-            onValidation={(errors) => handleStepValidation(3, errors)}
+            onValidation={handleStep3Validation}
           />
         );
       case 4:
         return (
           <ReviewDeploy
             config={config as DAOConfig}
-            onValidation={(errors) => handleStepValidation(4, errors)}
+            onValidation={handleStep4Validation}
             onDeploy={handleDeploy}
             gasEstimate={gasEstimate}
             deploymentStatus={deploymentStatus}

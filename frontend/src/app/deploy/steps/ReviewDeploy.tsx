@@ -50,7 +50,11 @@ export default function ReviewDeploy({
   // Handle deployment action
   const handleDeploy = () => {
     if (!deployDAO || !account || !isSupported) {
-      console.error('Cannot deploy: missing requirements');
+      console.error('Cannot deploy: missing requirements', {
+        deployDAO: !!deployDAO,
+        account: !!account,
+        isSupported
+      });
       return;
     }
 
@@ -68,8 +72,6 @@ export default function ReviewDeploy({
 
     // Start the deployment - this will trigger the wallet
     deployDAO(contractConfig, config.initialRecipient as Address);
-    
-    // Don't show modal immediately - let the main page watch for deployment state changes
   };
 
   const canDeploy = errors.length === 0 && tosAccepted && understandsIrreversible && !isDeploying && account && isSupported;
