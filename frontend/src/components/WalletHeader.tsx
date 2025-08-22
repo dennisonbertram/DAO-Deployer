@@ -8,6 +8,7 @@ import { ChevronDownIcon, PlusIcon, BanknotesIcon } from '@heroicons/react/24/ou
 import { cn } from '@/lib/utils';
 import { chains } from '@/lib/wagmi';
 import { localhost } from '@/lib/contracts/addresses';
+import { useToast } from '@/hooks/use-toast';
 
 interface CustomNetworkFormProps {
   onClose: () => void;
@@ -202,13 +203,10 @@ interface DevFundingButtonProps {
 
 function DevFundingButton({ walletAddress, onNetworkSwitch }: DevFundingButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const [message, setMessage] = useState<string>('');
-  const [isError, setIsError] = useState(false);
+  const { toast } = useToast();
 
   const handleFundWallet = async () => {
     setIsLoading(true);
-    setMessage('');
-    setIsError(false);
 
     try {
       // First switch to localhost network
@@ -234,17 +232,22 @@ function DevFundingButton({ walletAddress, onNetworkSwitch }: DevFundingButtonPr
         throw new Error(data.error || 'Failed to fund wallet');
       }
 
-      setMessage(`✅ Successfully sent 100 ETH! TX: ${data.transactionHash?.slice(0, 10)}...`);
-      setIsError(false);
+      toast({
+        title: "💰 Wallet Funded Successfully!",
+        description: `Sent 100 ETH to your wallet. TX: ${data.transactionHash?.slice(0, 10)}...`,
+        duration: 5000,
+      });
 
     } catch (error) {
       console.error('Funding error:', error);
-      setMessage(error instanceof Error ? error.message : 'Failed to fund wallet');
-      setIsError(true);
+      toast({
+        title: "❌ Funding Failed",
+        description: error instanceof Error ? error.message : 'Failed to fund wallet',
+        variant: "destructive",
+        duration: 5000,
+      });
     } finally {
       setIsLoading(false);
-      // Clear message after 5 seconds
-      setTimeout(() => setMessage(''), 5000);
     }
   };
 
@@ -254,39 +257,28 @@ function DevFundingButton({ walletAddress, onNetworkSwitch }: DevFundingButtonPr
   }
 
   return (
-    <div className="flex flex-col items-end">
-      <button
-        onClick={handleFundWallet}
-        disabled={isLoading}
-        className={cn(
-          "flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors",
-          "bg-green-600 hover:bg-green-700 text-white",
-          "disabled:opacity-50 disabled:cursor-not-allowed"
-        )}
-        title="Fund wallet with 100 ETH from Anvil (Development only)"
-      >
-        {isLoading ? (
-          <>
-            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            Funding...
-          </>
-        ) : (
-          <>
-            <BanknotesIcon className="w-4 h-4" />
-            Fund 100 ETH
-          </>
-        )}
-      </button>
-      
-      {message && (
-        <div className={cn(
-          "mt-1 text-xs px-2 py-1 rounded",
-          isError ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"
-        )}>
-          {message}
-        </div>
+    <button
+      onClick={handleFundWallet}
+      disabled={isLoading}
+      className={cn(
+        "flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors",
+        "bg-green-600 hover:bg-green-700 text-white",
+        "disabled:opacity-50 disabled:cursor-not-allowed"
       )}
-    </div>
+      title="Fund wallet with 100 ETH from Anvil (Development only)"
+    >
+      {isLoading ? (
+        <>
+          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+          Funding...
+        </>
+      ) : (
+        <>
+          <BanknotesIcon className="w-4 h-4" />
+          Fund 100 ETH
+        </>
+      )}
+    </button>
   );
 }
 

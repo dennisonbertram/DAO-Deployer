@@ -4,6 +4,7 @@ import './globals.css'
 import { cn } from '@/lib/utils'
 import { WalletProvider } from '@/providers/WalletProvider'
 import { WalletHeader } from '@/components/WalletHeader'
+import { Toaster } from '@/components/ui/toaster'
 
 const dmSans = DM_Sans({ 
   subsets: ['latin'],
@@ -40,6 +41,7 @@ export default function RootLayout({
           <main className="min-h-screen">
             {children}
           </main>
+          <Toaster />
         </WalletProvider>
       </body>
     </html>
