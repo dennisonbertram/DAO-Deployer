@@ -39,7 +39,15 @@ export default function DeployPage() {
   const [deploymentHash, setDeploymentHash] = useState<Hash | undefined>();
 
   // Get deployment state from factory hooks
-  const { deployHash, isDeploying, deploySuccess, deployError } = useFactory();
+  const { 
+    deployDAO,
+    deployHash, 
+    isDeploying, 
+    deploySuccess, 
+    deployError,
+    deployErrorDetails,
+    isSupported
+  } = useFactory();
 
   // Update deployment hash when factory provides it
   useEffect(() => {
@@ -155,6 +163,11 @@ export default function DeployPage() {
             onDeploy={handleDeploy}
             gasEstimate={gasEstimate}
             deploymentStatus={deploymentStatus}
+            deployDAO={deployDAO}
+            isSupported={isSupported}
+            isDeploying={isDeploying}
+            deployError={deployError}
+            deployErrorDetails={deployErrorDetails}
           />
         );
       default:

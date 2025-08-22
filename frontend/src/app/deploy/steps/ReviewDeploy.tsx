@@ -3,7 +3,6 @@
 import { DAOConfig, ValidationError, SUPPORTED_NETWORKS, GasEstimate, DeploymentStatus } from '@/types/deploy';
 import { validateComplete, formatTime, formatTimeFromSeconds } from '@/lib/validation/deploy';
 import { useState, useEffect } from 'react';
-import { useFactory, useTransactionWatcher } from '@/hooks/contracts';
 import { useAccount } from 'wagmi';
 import { Address } from 'viem';
 
@@ -13,6 +12,12 @@ interface ReviewDeployProps {
   onDeploy: () => void;
   gasEstimate?: GasEstimate;
   deploymentStatus: DeploymentStatus;
+  // Factory hooks passed from parent
+  deployDAO?: (config: any, recipient: Address) => void;
+  isSupported: boolean;
+  isDeploying: boolean;
+  deployError: boolean;
+  deployErrorDetails: any;
 }
 
 export default function ReviewDeploy({ 
@@ -20,7 +25,12 @@ export default function ReviewDeploy({
   onValidation, 
   onDeploy, 
   gasEstimate,
-  deploymentStatus 
+  deploymentStatus,
+  deployDAO,
+  isSupported,
+  isDeploying,
+  deployError,
+  deployErrorDetails
 }: ReviewDeployProps) {
   const [errors, setErrors] = useState<ValidationError[]>([]);
   const [tosAccepted, setTosAccepted] = useState(false);
@@ -31,56 +41,11 @@ export default function ReviewDeploy({
   // Get current account
   const { address: account } = useAccount();
   
-  // Factory contract hooks
-  const { 
-    deployDAO, 
-    isSupported, 
-    deployHash, 
-    isDeploying, 
-    deployError, 
-    deployErrorDetails, 
-    deploySuccess 
-  } = useFactory();
-  
-  // Transaction receipt watching
-  const { 
-    receipt, 
-    isLoading: isWaitingForReceipt, 
-    isConfirmed 
-  } = useTransactionWatcher(deployHash);
-  
   useEffect(() => {
     const newErrors = validateComplete(config);
     setErrors(newErrors);
     onValidation(newErrors);
   }, [config, onValidation]);
-
-  // Handle successful deployment and extract DAO address from receipt
-  useEffect(() => {
-    if (isConfirmed && receipt && receipt.status === 'success') {
-      // Find DAODeployed event in the transaction receipt
-      const daoDeployedEvent = receipt.logs.find(
-        log => log.topics[0] === '0x...' // DAODeployed event topic hash would go here
-      );
-      
-      if (daoDeployedEvent) {
-        // Extract DAO address from event data
-        // This would need to be properly decoded based on the actual event structure
-        const daoAddress = daoDeployedEvent.topics[1] as Address; // Assuming DAO address is in first indexed parameter
-        
-        onDeploy({
-          daoAddress,
-          hash: deployHash as string
-        });
-      } else if (deployHash) {
-        // Fallback: call onDeploy with just the hash if we can't find the event
-        onDeploy({
-          daoAddress: '0x0000000000000000000000000000000000000000' as Address,
-          hash: deployHash
-        });
-      }
-    }
-  }, [isConfirmed, receipt, onDeploy, deployHash]);
 
   // Handle deployment action
   const handleDeploy = () => {
@@ -433,71 +398,8 @@ export default function ReviewDeploy({
                 : 'bg-gray-300 text-gray-500 cursor-not-allowed'
             }`}
           >
-            {isDeploying && 'Deploying DAO...'}
-            {deployError && 'Deployment Failed - Retry'}
-            {isConfirmed && 'Deployment Successful!'}
-            {!isDeploying && !deployError && !isConfirmed && 'Deploy DAO'}
+            {isDeploying ? 'Deploying DAO...' : 'Deploy DAO'}
           </button>
-
-          {(isDeploying || isWaitingForReceipt) && (
-            <div className="text-center space-y-4">
-              <div className="flex items-center justify-center space-x-3">
-                <div className="animate-spin rounded-full h-5 w-5 border-2 border-primary-600 border-t-transparent"></div>
-                <p className="text-sm text-gray-600">Deploying your DAO...</p>
-              </div>
-              {deployHash && (
-                <div>
-                  <p className="text-sm text-gray-600 mb-2">Transaction submitted</p>
-                  <a
-                    href={`https://etherscan.io/tx/${deployHash}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-primary-600 hover:text-primary-700 underline"
-                  >
-                    View on {selectedNetwork?.name || 'Etherscan'}
-                  </a>
-                </div>
-              )}
-            </div>
-          )}
-
-          {deployError && deployErrorDetails && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-              <div className="flex items-start">
-                <svg className="w-5 h-5 text-red-400 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <div>
-                  <h4 className="text-sm font-medium text-red-800 mb-1">Deployment Failed</h4>
-                  <p className="text-sm text-red-700">{deployErrorDetails.message}</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {isConfirmed && receipt && receipt.status === 'success' && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <div className="flex items-start">
-                <svg className="w-5 h-5 text-green-400 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                <div>
-                  <h4 className="text-sm font-medium text-green-800 mb-1">DAO Deployed Successfully!</h4>
-                  <p className="text-sm text-green-700">Your DAO has been deployed and is ready to use.</p>
-                  {deployHash && (
-                    <a
-                      href={`https://etherscan.io/tx/${deployHash}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="mt-2 inline-block text-sm text-green-600 hover:text-green-700 underline"
-                    >
-                      View Transaction
-                    </a>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>
