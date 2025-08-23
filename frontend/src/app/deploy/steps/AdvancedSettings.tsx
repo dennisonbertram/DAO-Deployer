@@ -46,7 +46,7 @@ export default function AdvancedSettings({ config, onUpdate, onValidation }: Adv
   });
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="max-w-4xl mx-auto">
       <div className="mb-8">
         <h3 className="text-2xl font-bold text-gray-900 mb-4">Advanced Settings</h3>
         <p className="text-gray-600">

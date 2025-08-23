@@ -50,7 +50,7 @@ export default function GovernanceParams({ config, onUpdate, onValidation }: Gov
   };
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <div className="max-w-4xl mx-auto">
       <div className="mb-8">
         <h3 className="text-2xl font-bold text-gray-900 mb-4">Governance Parameters</h3>
         <p className="text-gray-600">

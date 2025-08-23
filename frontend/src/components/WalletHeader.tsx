@@ -9,6 +9,8 @@ import { cn } from '@/lib/utils';
 import { chains } from '@/lib/wagmi';
 import { localhost } from '@/lib/contracts/addresses';
 import { useToast } from '@/hooks/use-toast';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
 
 interface CustomNetworkFormProps {
   onClose: () => void;
@@ -51,8 +53,8 @@ function CustomNetworkForm({ onClose, onAdd }: CustomNetworkFormProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-96 max-w-full">
+    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm supports-[backdrop-filter]:bg-background/60 flex items-center justify-center">
+      <div className="bg-background border rounded-lg shadow-lg p-6 w-96 max-w-full">
         <h3 className="text-lg font-semibold mb-4">Add Custom Network</h3>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -115,19 +117,12 @@ function CustomNetworkForm({ onClose, onAdd }: CustomNetworkFormProps) {
           </div>
           
           <div className="flex gap-3 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
-            >
+            <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
               Cancel
-            </button>
-            <button
-              type="submit"
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-            >
+            </Button>
+            <Button type="submit" className="flex-1">
               Add Network
-            </button>
+            </Button>
           </div>
         </form>
       </div>
@@ -148,18 +143,19 @@ function NetworkSelector({ currentChainId, onNetworkSwitch, onAddCustomNetwork }
   
   return (
     <div className="relative">
-      <button
+      <Button
+        variant="outline"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+        className="gap-2"
       >
         <span className="text-sm font-medium">
           {currentChain?.name || 'Unknown Network'}
         </span>
         <ChevronDownIcon className="w-4 h-4" />
-      </button>
+      </Button>
       
       {isOpen && (
-        <div className="absolute top-full left-0 mt-1 bg-white border rounded-lg shadow-lg z-10 min-w-[200px]">
+        <div className="absolute top-full left-0 mt-2 z-50 min-w-[220px] rounded-md border bg-popover text-popover-foreground shadow-md">
           <div className="py-1">
             {chains.map((chain) => (
               <button
@@ -169,22 +165,22 @@ function NetworkSelector({ currentChainId, onNetworkSwitch, onAddCustomNetwork }
                   setIsOpen(false);
                 }}
                 className={cn(
-                  "w-full text-left px-4 py-2 text-sm hover:bg-gray-100 transition-colors",
-                  currentChainId === chain.id && "bg-blue-50 text-blue-600"
+                  "w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground transition-colors",
+                  currentChainId === chain.id && "bg-accent/60 text-foreground"
                 )}
               >
                 {chain.name}
               </button>
             ))}
-            
-            <hr className="my-1" />
-            
+
+            <div className="my-1 border-t" />
+
             <button
               onClick={() => {
                 onAddCustomNetwork();
                 setIsOpen(false);
               }}
-              className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 transition-colors flex items-center gap-2 text-blue-600"
+              className="w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground transition-colors flex items-center gap-2 text-primary"
             >
               <PlusIcon className="w-4 h-4" />
               Add Custom Network
@@ -317,14 +313,19 @@ export function WalletHeader() {
 
   return (
     <>
-      <header className="border-b bg-white">
+      <header className="border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
               <h1 className="text-xl font-bold text-gray-900">DAO Deployer</h1>
             </div>
             
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
+              {/* Deploy CTA should be left of the first wallet UI element */}
+              <Button asChild>
+                <Link href="/deploy">Deploy DAO</Link>
+              </Button>
+
               {isConnected && (
                 <NetworkSelector
                   currentChainId={chainId}
@@ -372,35 +373,23 @@ export function WalletHeader() {
                       {(() => {
                         if (!connected) {
                           return (
-                            <button
-                              onClick={openConnectModal}
-                              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-                              type="button"
-                            >
+                            <Button onClick={openConnectModal} type="button">
                               Connect Wallet
-                            </button>
+                            </Button>
                           );
                         }
 
                         if (chain.unsupported) {
                           return (
-                            <button
-                              onClick={openChainModal}
-                              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-                              type="button"
-                            >
+                            <Button variant="destructive" onClick={openChainModal} type="button">
                               Wrong network
-                            </button>
+                            </Button>
                           );
                         }
 
                         return (
                           <div className="flex items-center gap-2">
-                            <button
-                              onClick={openChainModal}
-                              className="bg-gray-100 hover:bg-gray-200 px-3 py-2 rounded-lg font-medium transition-colors text-sm"
-                              type="button"
-                            >
+                            <Button variant="outline" onClick={openChainModal} type="button">
                               {chain.hasIcon && (
                                 <div
                                   style={{
@@ -423,18 +412,12 @@ export function WalletHeader() {
                                 </div>
                               )}
                               {chain.name}
-                            </button>
+                            </Button>
 
-                            <button
-                              onClick={openAccountModal}
-                              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-                              type="button"
-                            >
+                            <Button onClick={openAccountModal} type="button">
                               {account.displayName}
-                              {account.displayBalance
-                                ? ` (${account.displayBalance})`
-                                : ''}
-                            </button>
+                              {account.displayBalance ? ` (${account.displayBalance})` : ''}
+                            </Button>
                           </div>
                         );
                       })()}

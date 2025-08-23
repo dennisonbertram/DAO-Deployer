@@ -1,5 +1,4 @@
 'use client'
-
 import { DeploymentStep } from '@/types/deploy';
 import { Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -10,42 +9,52 @@ interface ProgressBarProps {
 }
 
 export default function ProgressBar({ steps, currentStep }: ProgressBarProps) {
+  const shortTitles: Record<number, string> = {
+    1: 'Basics',
+    2: 'Governance',
+    3: 'Advanced',
+    4: 'Review',
+  };
   return (
-    <div className="w-full space-y-4">
-      <div className="flex items-center justify-between">
-        {steps.map((step, index) => (
-          <div key={step.id} className="flex items-center">
-            <div className={cn(
-              "flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium transition-colors",
-              step.isComplete
-                ? 'bg-primary text-primary-foreground'
-                : step.isActive
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-muted-foreground'
-            )}>
-              {step.isComplete ? (
-                <Check className="w-5 h-5" />
-              ) : (
-                step.id
-              )}
+    <div className="w-full space-y-2 pb-8">
+      <div className="relative w-full py-2">
+        {/* Full-width background line */}
+        <div className="absolute left-4 right-4 top-1/2 -translate-y-1/2 h-0.5 bg-border" />
+        
+        {/* Step containers with equal width */}
+        <div className="relative flex w-full">
+          {steps.map((step, index) => (
+            <div key={step.id} className="flex items-center" style={{ width: `${100 / steps.length}%` }}>
+              {/* Step content */}
+              <div className="relative z-10 flex items-center gap-3 bg-gray-50 pr-4">
+                <div
+                  className={cn(
+                    'flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium',
+                    step.isComplete
+                      ? 'bg-primary text-primary-foreground'
+                      : step.isActive
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted text-muted-foreground'
+                  )}
+                >
+                  {step.isComplete ? <Check className="w-5 h-5" /> : step.id}
+                </div>
+                <div
+                  className={cn(
+                    'text-xs sm:text-sm whitespace-nowrap leading-snug',
+                    step.isActive ? 'font-semibold text-foreground' : 'text-muted-foreground'
+                  )}
+                  title={step.title}
+                >
+                  {shortTitles[step.id] ?? step.title.split(' ')[0]}
+                </div>
+              </div>
             </div>
-            {index < steps.length - 1 && (
-              <div className={cn(
-                "flex-1 h-0.5 mx-4 min-w-[80px] transition-colors",
-                step.isComplete ? 'bg-primary' : 'bg-border'
-              )} />
-            )}
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
-      
-      <div className="text-center space-y-1">
-        <h2 className="text-xl font-semibold">
-          Step {currentStep} of {steps.length}
-        </h2>
-        <p className="text-muted-foreground">
-          {steps.find(s => s.id === currentStep)?.title || 'Unknown Step'}
-        </p>
+      <div className="text-center">
+        <p className="text-xs text-muted-foreground">Step {currentStep} of {steps.length}</p>
       </div>
     </div>
   );

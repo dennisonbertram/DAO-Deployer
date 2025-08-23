@@ -48,7 +48,7 @@ export default function BasicInfo({ config, onUpdate, onValidation }: BasicInfoP
                         window.location.hostname === '127.0.0.1');
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="max-w-4xl mx-auto">
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-2xl font-bold text-gray-900">Basic Information</h3>

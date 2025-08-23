@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import { DM_Sans, Inter } from 'next/font/google'
 import './globals.css'
 import { cn } from '@/lib/utils'
@@ -41,6 +42,15 @@ export default function RootLayout({
           <main className="min-h-screen">
             {children}
           </main>
+          <footer className="border-t border-gray-200 dark:border-gray-800">
+            <div className="mx-auto max-w-5xl px-6 py-6 flex items-center justify-between text-sm text-muted-foreground">
+              <p className="m-0">© {new Date().getFullYear()} DAO Deployer</p>
+              <nav className="flex items-center gap-4">
+                <Link href="/terms" className="hover:text-foreground underline underline-offset-4">Terms</Link>
+                <Link href="/privacy" className="hover:text-foreground underline underline-offset-4">Privacy</Link>
+              </nav>
+            </div>
+          </footer>
           <Toaster />
         </WalletProvider>
       </body>

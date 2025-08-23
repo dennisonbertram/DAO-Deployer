@@ -5,25 +5,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-secondary/20">
-      {/* Header */}
-      <header className="border-b bg-background/80 backdrop-blur-sm">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex h-16 items-center justify-between">
-            <div className="flex items-center">
-              <h1 className="text-xl font-bold">DAO Deployer</h1>
-            </div>
-            <nav className="hidden md:flex items-center space-x-8">
-              <Link href="/explore" className="text-muted-foreground hover:text-foreground transition-colors">
-                Explore DAOs
-              </Link>
-              <Button asChild>
-                <Link href="/deploy">Deploy DAO</Link>
-              </Button>
-            </nav>
-          </div>
-        </div>
-      </header>
-
       {/* Hero Section */}
       <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
         <div className="text-center">
@@ -189,16 +170,7 @@ export default function HomePage() {
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="mx-auto mt-32 max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="border-t py-16">
-          <div className="text-center">
-            <p className="text-sm leading-5 text-muted-foreground">
-              Built with ❤️ for the decentralized future
-            </p>
-          </div>
-        </div>
-      </footer>
+      {/* Page-specific footer removed; global footer in layout */}
     </div>
   )
 }
