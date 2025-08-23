@@ -1,0 +1,42 @@
+{
+  "name": "dao-deployer-mcp-server",
+  "version": "1.0.0",
+  "description": "Model Context Protocol server for deploying DAO factories and DAOs to any network with hardware wallet support",
+  "main": "build/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node build/index.js",
+    "test": "jest"
+  },
+  "keywords": [
+    "mcp",
+    "dao",
+    "ethereum",
+    "blockchain",
+    "deployment",
+    "hardware-wallet"
+  ],
+  "author": "DAO Deployer MCP",
+  "license": "MIT",
+  "dependencies": {
+    "@ledgerhq/hw-app-eth": "^6.45.15",
+    "@ledgerhq/hw-transport-node-hid": "^6.29.10",
+    "@ledgerhq/hw-transport-node-hid-singleton": "^6.31.10",
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "dotenv": "^16.4.0",
+    "viem": "^2.21.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.0",
+    "@types/node": "^22.0.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.0",
+    "typescript": "^5.5.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
