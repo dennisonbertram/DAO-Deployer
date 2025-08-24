@@ -47,6 +47,10 @@ import { listResources, readResource } from './resources/index.js';
 /**
  * Create and configure the DAO Deployer MCP server
  */
+// Disable console.log in production to avoid interfering with MCP protocol
+const originalLog = console.log;
+console.log = () => {}; // Silent logging for MCP protocol compliance
+
 export async function createServer(): Promise<Server> {
   const server = new Server(
     {
@@ -476,7 +480,7 @@ export async function createServer(): Promise<Server> {
     try {
       switch (name) {
         case 'deploy-factory': {
-          console.log('<� Executing deploy-factory tool...');
+          // console.log('<� Executing deploy-factory tool...');
           const validatedArgs = DeployFactoryInputSchema.parse(args);
           const result = await deployFactory(validatedArgs);
           const summary = formatFactoryDeploymentSummary(result);

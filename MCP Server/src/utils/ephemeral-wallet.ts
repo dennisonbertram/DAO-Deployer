@@ -6,7 +6,8 @@ import { homedir } from 'os';
 import crypto from 'crypto';
 import { getNetworkConfig, resolveNetworkConfig } from '../networks/index.js';
 
-const WALLET_DIR = join(homedir(), '.dao-deployer', 'ephemeral-wallets');
+const BASE_DIR = process.env.DAO_DEPLOYER_DATA_DIR || join(homedir(), '.dao-deployer');
+const WALLET_DIR = join(BASE_DIR, 'ephemeral-wallets');
 
 export interface EphemeralWallet {
   address: string;
@@ -70,8 +71,8 @@ export async function generateEphemeralWallet(networkName: string): Promise<Ephe
       securityNote: 'Generated using VIEM - private key stored for ephemeral use only'
     };
     
-    // Save to disk with restricted permissions
-    const keyFile = join(WALLET_DIR, `${walletId}.json`);
+    // Save to disk with restricted permissions using address-based filename
+    const keyFile = join(WALLET_DIR, `${account.address.slice(2)}.json`);
     await fs.writeFile(keyFile, JSON.stringify(walletData, null, 2), { mode: 0o600 });
     
     console.log(`✅ Generated ephemeral wallet: ${account.address}`);

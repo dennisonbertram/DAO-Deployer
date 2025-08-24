@@ -8,7 +8,14 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "start": "node build/index.js",
-    "test": "jest"
+    "test": "vitest",
+    "test:watch": "vitest --watch",
+    "test:coverage": "vitest --coverage",
+    "test:ui": "vitest --ui",
+    "test:integration": "vitest run --config vitest.config.integration.ts",
+    "test:e2e": "vitest run --config vitest.config.e2e.ts",
+    "anvil:start": "anvil --port 8545 --accounts 10 --balance 10000 --gas-limit 30000000",
+    "anvil:stop": "pkill -f anvil || true"
   },
   "keywords": [
     "mcp",
@@ -30,11 +37,14 @@
     "zod": "^3.23.0"
   },
   "devDependencies": {
-    "@types/jest": "^29.5.0",
     "@types/node": "^22.0.0",
-    "jest": "^29.7.0",
-    "ts-jest": "^29.2.0",
-    "typescript": "^5.5.0"
+    "@vitest/coverage-v8": "^1.1.0",
+    "@vitest/ui": "^1.1.0",
+    "fast-check": "^3.15.0",
+    "rimraf": "^5.0.5",
+    "tsx": "^4.7.0",
+    "typescript": "^5.5.0",
+    "vitest": "^1.1.0"
   },
   "engines": {
     "node": ">=18.0.0"

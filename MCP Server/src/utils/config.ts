@@ -2,6 +2,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
 import { z } from 'zod';
+import { AtomicFileWriter } from './atomic-file.js';
 
 /**
  * API Key Configuration Management
@@ -23,8 +24,8 @@ export const APIKeysSchema = z.object({
 
 export type APIKeys = z.infer<typeof APIKeysSchema>;
 
-// Configuration file path
-const CONFIG_DIR = path.join(os.homedir(), '.dao-deployer');
+// Configuration file path - can be overridden for testing
+const CONFIG_DIR = process.env.DAO_DEPLOYER_DATA_DIR || path.join(os.homedir(), '.dao-deployer');
 const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
 
 /**
@@ -77,33 +78,30 @@ export async function saveAPIKeys(apiKeys: Partial<APIKeys>): Promise<void> {
   try {
     await ensureConfigDir();
     
-    // Load existing config
-    let existingConfig: any = {};
-    try {
-      const configData = await fs.readFile(CONFIG_FILE, 'utf-8');
-      existingConfig = JSON.parse(configData);
-    } catch {
-      // File doesn't exist or is invalid, start with empty config
-    }
+    // Use atomic update to prevent corruption during concurrent access
+    await AtomicFileWriter.updateJSON(
+      CONFIG_FILE,
+      (existingConfig: any) => {
+        // Merge with existing API keys
+        const currentKeys = existingConfig.apiKeys || {};
+        const updatedKeys = { ...currentKeys, ...apiKeys };
+        
+        // Remove undefined/empty values
+        Object.keys(updatedKeys).forEach(key => {
+          if (!updatedKeys[key] || updatedKeys[key].trim() === '') {
+            delete updatedKeys[key];
+          }
+        });
+        
+        return {
+          ...existingConfig,
+          apiKeys: updatedKeys,
+          updatedAt: new Date().toISOString()
+        };
+      },
+      { mode: 0o600, retries: 3 }
+    );
     
-    // Merge with existing API keys
-    const currentKeys = existingConfig.apiKeys || {};
-    const updatedKeys = { ...currentKeys, ...apiKeys };
-    
-    // Remove undefined/empty values
-    Object.keys(updatedKeys).forEach(key => {
-      if (!updatedKeys[key] || updatedKeys[key].trim() === '') {
-        delete updatedKeys[key];
-      }
-    });
-    
-    const config = {
-      ...existingConfig,
-      apiKeys: updatedKeys,
-      updatedAt: new Date().toISOString()
-    };
-    
-    await fs.writeFile(CONFIG_FILE, JSON.stringify(config, null, 2));
     console.log(`✅ API keys saved to: ${CONFIG_FILE}`);
     
   } catch (error: any) {
