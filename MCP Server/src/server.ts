@@ -28,6 +28,18 @@ import {
   RemoveAPIKeyInputSchema,
   SetMultipleAPIKeysInputSchema
 } from './tools/manage-api-keys.js';
+import {
+  generateEphemeralWalletTool,
+  listEphemeralWalletsTool,
+  checkWalletBalanceTool,
+  sweepEphemeralWalletTool,
+  deleteEphemeralWalletTool,
+  formatEphemeralWalletResult,
+  GenerateEphemeralWalletInputSchema,
+  CheckWalletBalanceInputSchema,
+  SweepEphemeralWalletInputSchema,
+  DeleteEphemeralWalletInputSchema
+} from './tools/manage-ephemeral-wallets.js';
 
 // Import resource implementations
 import { listResources, readResource } from './resources/index.js';
@@ -52,7 +64,6 @@ export async function createServer(): Promise<Server> {
 
   // List available tools
   server.setRequestHandler(ListToolsRequestSchema, async () => {
-    console.error('📝 DEBUG: Handling tools/list request in main server');
     return {
       tools: [
         {
@@ -368,6 +379,91 @@ export async function createServer(): Promise<Server> {
             type: 'object',
             properties: {}
           }
+        },
+        {
+          name: 'generate-ephemeral-wallet',
+          description: 'Generate a temporary wallet with software-managed private key for funding deployments',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              networkName: {
+                type: 'string',
+                description: 'Name of the blockchain network to generate wallet for'
+              }
+            },
+            required: ['networkName']
+          }
+        },
+        {
+          name: 'list-ephemeral-wallets', 
+          description: 'List all ephemeral wallets created for temporary funding',
+          inputSchema: {
+            type: 'object',
+            properties: {}
+          }
+        },
+        {
+          name: 'check-wallet-balance',
+          description: 'Check the balance of an ephemeral wallet to see if it has been funded',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              walletAddress: {
+                type: 'string',
+                description: 'The wallet address to check balance for'
+              },
+              networkName: {
+                type: 'string',
+                description: 'Name of the blockchain network'
+              }
+            },
+            required: ['walletAddress', 'networkName']
+          }
+        },
+        {
+          name: 'sweep-ephemeral-wallet',
+          description: 'Sweep all remaining funds from ephemeral wallet to specified recipient address',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              walletAddress: {
+                type: 'string',
+                description: 'The ephemeral wallet address to sweep funds from'
+              },
+              recipientAddress: {
+                type: 'string',
+                description: 'The recipient address to send all funds to'
+              },
+              networkName: {
+                type: 'string',
+                description: 'Name of the blockchain network'
+              },
+              deleteKeyAfterSweep: {
+                type: 'boolean',
+                default: false,
+                description: 'Whether to delete the private key after successful sweep (only if wallet is empty)'
+              }
+            },
+            required: ['walletAddress', 'recipientAddress', 'networkName']
+          }
+        },
+        {
+          name: 'delete-ephemeral-wallet',
+          description: 'Manually delete an ephemeral wallet (only works if wallet is empty)',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              walletAddress: {
+                type: 'string',
+                description: 'The wallet address to delete'
+              },
+              networkName: {
+                type: 'string',
+                description: 'Name of the blockchain network'
+              }
+            },
+            required: ['walletAddress', 'networkName']
+          }
         }
       ]
     };
@@ -567,6 +663,85 @@ export async function createServer(): Promise<Server> {
           };
         }
 
+        case 'generate-ephemeral-wallet': {
+          console.log('🔐 Executing generate-ephemeral-wallet tool...');
+          const validatedArgs = GenerateEphemeralWalletInputSchema.parse(args);
+          const result = await generateEphemeralWalletTool(validatedArgs);
+          const summary = formatEphemeralWalletResult(result);
+          
+          return {
+            content: [
+              {
+                type: 'text',
+                text: summary
+              }
+            ]
+          };
+        }
+
+        case 'list-ephemeral-wallets': {
+          console.log('📋 Executing list-ephemeral-wallets tool...');
+          const result = await listEphemeralWalletsTool();
+          const summary = formatEphemeralWalletResult(result);
+          
+          return {
+            content: [
+              {
+                type: 'text',
+                text: summary
+              }
+            ]
+          };
+        }
+
+        case 'check-wallet-balance': {
+          console.log('💰 Executing check-wallet-balance tool...');
+          const validatedArgs = CheckWalletBalanceInputSchema.parse(args);
+          const result = await checkWalletBalanceTool(validatedArgs);
+          const summary = formatEphemeralWalletResult(result);
+          
+          return {
+            content: [
+              {
+                type: 'text',
+                text: summary
+              }
+            ]
+          };
+        }
+
+        case 'sweep-ephemeral-wallet': {
+          console.log('💸 Executing sweep-ephemeral-wallet tool...');
+          const validatedArgs = SweepEphemeralWalletInputSchema.parse(args);
+          const result = await sweepEphemeralWalletTool(validatedArgs);
+          const summary = formatEphemeralWalletResult(result);
+          
+          return {
+            content: [
+              {
+                type: 'text',
+                text: summary
+              }
+            ]
+          };
+        }
+
+        case 'delete-ephemeral-wallet': {
+          console.log('🗑️ Executing delete-ephemeral-wallet tool...');
+          const validatedArgs = DeleteEphemeralWalletInputSchema.parse(args);
+          const result = await deleteEphemeralWalletTool(validatedArgs);
+          const summary = formatEphemeralWalletResult(result);
+          
+          return {
+            content: [
+              {
+                type: 'text',
+                text: summary
+              }
+            ]
+          };
+        }
+
         default:
           throw new McpError(
             ErrorCode.MethodNotFound,
@@ -637,13 +812,10 @@ export async function createServer(): Promise<Server> {
  * Start the MCP server with stdio transport
  */
 export async function startServer(): Promise<void> {
-  console.error('📝 DEBUG: Creating server...');
   const server = await createServer();
-  console.error('📝 DEBUG: Server created, creating transport...');
   const transport = new StdioServerTransport();
-  console.error('📝 DEBUG: Transport created, connecting...');
   await server.connect(transport);
-  console.error('=� DAO Deployer MCP Server started successfully');
+  console.error('🏛️ DAO Deployer MCP Server started successfully');
 }
 
 /**

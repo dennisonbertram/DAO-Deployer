@@ -20,11 +20,8 @@ config();
  */
 async function main(): Promise<void> {
   try {
-    console.error('📝 DEBUG: Starting main() function');
     // Create and start the MCP server
-    console.error('📝 DEBUG: Calling startServer()');
     await startServer();
-    console.error('📝 DEBUG: startServer() completed');
 
     // Handle graceful shutdown
     const shutdown = async (signal: string) => {
