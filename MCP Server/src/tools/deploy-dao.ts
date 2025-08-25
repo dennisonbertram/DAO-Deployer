@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { deployContractWithLedger, checkLedgerStatus } from '../utils/ledger.js';
 import { getNetworkConfig, resolveNetworkConfig } from '../networks/index.js';
 import { 
   loadContractABI,
@@ -7,19 +6,35 @@ import {
   prepareTokenConstructorArgs,
   prepareGovernorConstructorArgs,
   prepareTimelockConstructorArgs,
-  getDAODeploymentOrder,
   getRecommendedContractVersion
 } from '../utils/contracts.js';
-import { DAODeploymentConfigSchema, DAODeploymentResult, DeploymentResult, HardwareWalletError } from '../types/index.js';
-import { Hex } from 'viem';
+import { prepareContractDeployment } from '../utils/transactions.js';
+import { DAODeploymentConfigSchema, PreparedTransaction, TransactionError } from '../types/index.js';
+import { Address, Hex } from 'viem';
 
 // Input validation schema for the deploy-dao tool
 export const DeployDAOInputSchema = DAODeploymentConfigSchema;
 
 /**
- * Deploy a complete DAO system through the factory or individually
+ * Deployment order for DAO contracts
  */
-export async function deployDAO(input: z.infer<typeof DeployDAOInputSchema>): Promise<DAODeploymentResult> {
+export interface DAODeploymentPlan {
+  step1_token: PreparedTransaction;
+  step2_timelock: PreparedTransaction;
+  step3_governor: PreparedTransaction;
+  metadata: {
+    daoName: string;
+    networkName: string;
+    factoryAddress: string;
+    totalEstimatedCost: string;
+    deploymentOrder: string[];
+  };
+}
+
+/**
+ * Prepare complete DAO deployment plan with all transactions
+ */
+export async function prepareDAODeploymentPlan(input: z.infer<typeof DeployDAOInputSchema>): Promise<DAODeploymentPlan> {
   try {
     // Validate input
     const config = DeployDAOInputSchema.parse(input);
@@ -27,154 +42,121 @@ export async function deployDAO(input: z.infer<typeof DeployDAOInputSchema>): Pr
     // Get network configuration
     const networkConfig = await resolveNetworkConfig(getNetworkConfig(config.networkName));
     
-    console.log(`\n🏛️ Deploying DAO "${config.daoName}" to ${networkConfig.name}`);
+    console.log(`\n🔧 Preparing DAO deployment plan for "${config.daoName}" on ${networkConfig.name}`);
     console.log(`🏭 Factory Address: ${config.factoryAddress}`);
-    console.log(`💳 Hardware Wallet: ${config.hardwareWalletType || 'None specified'}`);
+    console.log(`🪙 Token: ${config.tokenName} (${config.tokenSymbol})`);
     
-    // Check hardware wallet connection if required
-    if (config.useHardwareWallet && config.hardwareWalletType === 'ledger') {
-      console.log('🔍 Checking Ledger device status...');
-      const ledgerStatus = await checkLedgerStatus();
-      
-      if (!ledgerStatus.connected) {
-        throw new HardwareWalletError(
-          'Ledger device not connected. Please connect and unlock your Ledger device, then open the Ethereum app.'
-        );
-      }
-      
-      if (!ledgerStatus.ethereumAppOpen) {
-        throw new HardwareWalletError(
-          'Ethereum app not open on Ledger device. Please open the Ethereum app on your Ledger.'
-        );
-      }
-      
-      console.log(`✅ Ledger connected: ${ledgerStatus.address}`);
-    }
+    const deploymentOrder = ['Token Contract', 'Timelock Contract', 'Governor Contract'];
+    console.log('\n📋 Deployment Order:');
+    deploymentOrder.forEach((contract, index) => {
+      console.log(`${index + 1}. ${contract}`);
+    });
     
-    const deploymentStartTime = new Date();
-    let totalGasUsed = BigInt(0);
-    
-    // Deploy contracts in the correct order
-    const contracts: DAODeploymentResult['contracts'] = {} as any;
-    
-    console.log('\n📋 Deploying DAO contracts in order:');
-    console.log('1. 🪙 Token Contract');
-    console.log('2. ⏰ Timelock Contract');  
-    console.log('3. 🏛️ Governor Contract');
-    
-    // 1. Deploy Token Contract
-    console.log('\n🪙 Deploying Token Contract...');
+    // Step 1: Prepare Token Contract Deployment
+    console.log('\n🪙 Preparing Token Contract...');
     const tokenContract = getRecommendedContractVersion('token', true);
-    const tokenResult = await deployTokenContract(config, networkConfig, tokenContract);
-    contracts.token = tokenResult;
-    totalGasUsed += tokenResult.gasUsed;
+    const tokenTransaction = await prepareTokenDeployment(config, networkConfig, tokenContract);
     
-    // 2. Deploy Timelock Contract
-    console.log('\n⏰ Deploying Timelock Contract...');
+    // Step 2: Prepare Timelock Contract Deployment  
+    console.log('\n⏰ Preparing Timelock Contract...');
     const timelockContract = getRecommendedContractVersion('timelock', true);
-    const timelockResult = await deployTimelockContract(config, networkConfig, timelockContract);
-    contracts.timelock = timelockResult;
-    totalGasUsed += timelockResult.gasUsed;
+    const timelockTransaction = await prepareTimelockDeployment(config, networkConfig, timelockContract);
     
-    // 3. Deploy Governor Contract  
-    console.log('\n🏛️ Deploying Governor Contract...');
+    // Step 3: Prepare Governor Contract Deployment
+    console.log('\n🏛️ Preparing Governor Contract...');
     const governorContract = getRecommendedContractVersion('governor', true);
-    const governorResult = await deployGovernorContract(
-      config,
-      networkConfig,
-      governorContract,
-      tokenResult.contractAddress,
-      timelockResult.contractAddress
-    );
-    contracts.governor = governorResult;
-    totalGasUsed += governorResult.gasUsed;
+    const governorTransaction = await prepareGovernorDeployment(config, networkConfig, governorContract);
     
-    const deploymentEndTime = new Date();
+    // Calculate total estimated cost
+    const totalCostEth = [tokenTransaction, timelockTransaction, governorTransaction]
+      .reduce((sum, tx) => sum + parseFloat(tx.metadata.estimatedCostEth), 0)
+      .toFixed(6);
     
-    const result: DAODeploymentResult = {
-      daoName: config.daoName,
-      networkName: config.networkName,
-      factoryAddress: config.factoryAddress as `0x${string}`,
-      deploymentStatus: 'completed',
-      contracts,
-      totalGasUsed,
-      deploymentStartTime,
-      deploymentEndTime
+    const deploymentPlan: DAODeploymentPlan = {
+      step1_token: tokenTransaction,
+      step2_timelock: timelockTransaction, 
+      step3_governor: governorTransaction,
+      metadata: {
+        daoName: config.daoName,
+        networkName: config.networkName,
+        factoryAddress: config.factoryAddress,
+        totalEstimatedCost: totalCostEth,
+        deploymentOrder
+      }
     };
     
-    console.log(`\n🎉 DAO deployment completed successfully!`);
-    console.log(`⏱️  Total deployment time: ${Math.round((deploymentEndTime.getTime() - deploymentStartTime.getTime()) / 1000)}s`);
-    console.log(`⛽ Total gas used: ${totalGasUsed.toLocaleString()}`);
-    console.log(`\n📄 Deployed Contracts:`);
-    console.log(`   🪙 Token: ${contracts.token.contractAddress}`);
-    console.log(`   ⏰ Timelock: ${contracts.timelock.contractAddress}`);
-    console.log(`   🏛️ Governor: ${contracts.governor.contractAddress}`);
+    console.log(`\n✅ DAO deployment plan prepared successfully!`);
+    console.log(`🏛️ DAO: ${config.daoName}`);
+    console.log(`🌐 Network: ${networkConfig.name}`);
+    console.log(`💸 Total Estimated Cost: ${totalCostEth} ETH`);
+    console.log(`📊 Contracts to Deploy: ${deploymentOrder.length}`);
     
-    return result;
+    console.log(`\n📋 Next Steps:`);
+    console.log(`1. Sign and broadcast Step 1 (Token) transaction using your MCP Ledger server`);
+    console.log(`2. Wait for confirmation and note the contract address`);
+    console.log(`3. Update Step 3 (Governor) transaction with the token address`);
+    console.log(`4. Sign and broadcast Step 2 (Timelock) transaction`);
+    console.log(`5. Wait for confirmation and note the contract address`);
+    console.log(`6. Update Step 3 (Governor) transaction with the timelock address`);
+    console.log(`7. Sign and broadcast Step 3 (Governor) transaction`);
+    
+    return deploymentPlan;
     
   } catch (error: any) {
-    console.error('❌ DAO deployment failed:', error.message);
+    console.error('❌ DAO deployment plan preparation failed:', error.message);
     throw error;
   }
 }
 
 /**
- * Deploy the token contract for the DAO
+ * Prepare token contract deployment transaction
  */
-async function deployTokenContract(
+async function prepareTokenDeployment(
   config: z.infer<typeof DeployDAOInputSchema>,
   networkConfig: any,
   contractName: string
-): Promise<DeploymentResult> {
+): Promise<PreparedTransaction> {
   
   // Load contract bytecode
   console.log(`📝 Loading ${contractName} contract...`);
   const contractABI = await loadContractABI(contractName as ContractName);
   
   if (!contractABI.bytecode) {
-    throw new Error(`No bytecode found for ${contractName}. Please ensure contracts are compiled.`);
+    throw new TransactionError(`No bytecode found for ${contractName}. Please ensure contracts are compiled.`);
   }
   
-  // For upgradeable contracts, we need to deploy with initialization parameters
-  const constructorArgs = [
-    config.tokenName,
-    config.tokenSymbol,
-    config.initialSupply
-  ];
+  const constructorArgs = prepareTokenConstructorArgs({
+    name: config.tokenName,
+    symbol: config.tokenSymbol,
+    initialSupply: config.initialSupply,
+    ownerAddress: config.fromAddress || '0x0000000000000000000000000000000000000000'
+  });
   
-  // Deploy using Ledger
-  const deploymentResult = await deployContractWithLedger({
+  return await prepareContractDeployment({
     networkConfig,
     contractBytecode: contractABI.bytecode as Hex,
     constructorArgs,
-    gasEstimateMultiplier: 1.2
+    gasEstimateMultiplier: 1.2,
+    fromAddress: config.fromAddress as Address,
+    contractName
   });
-  
-  return {
-    transactionHash: deploymentResult.transactionHash,
-    contractAddress: deploymentResult.contractAddress,
-    blockNumber: BigInt(0), // TODO: Get from transaction receipt
-    gasUsed: BigInt(0), // TODO: Get from transaction receipt
-    status: 'completed',
-    verificationStatus: config.verifyContracts ? 'pending' : undefined
-  };
 }
 
 /**
- * Deploy the timelock contract for the DAO
+ * Prepare timelock contract deployment transaction
  */
-async function deployTimelockContract(
+async function prepareTimelockDeployment(
   config: z.infer<typeof DeployDAOInputSchema>,
   networkConfig: any,
   contractName: string
-): Promise<DeploymentResult> {
+): Promise<PreparedTransaction> {
   
   // Load contract bytecode
   console.log(`📝 Loading ${contractName} contract...`);
   const contractABI = await loadContractABI(contractName as ContractName);
   
   if (!contractABI.bytecode) {
-    throw new Error(`No bytecode found for ${contractName}. Please ensure contracts are compiled.`);
+    throw new TransactionError(`No bytecode found for ${contractName}. Please ensure contracts are compiled.`);
   }
   
   const constructorArgs = prepareTimelockConstructorArgs({
@@ -183,129 +165,222 @@ async function deployTimelockContract(
     executors: config.timelockSettings.executors
   });
   
-  // Deploy using Ledger
-  const deploymentResult = await deployContractWithLedger({
+  return await prepareContractDeployment({
     networkConfig,
     contractBytecode: contractABI.bytecode as Hex,
     constructorArgs,
-    gasEstimateMultiplier: 1.2
+    gasEstimateMultiplier: 1.2,
+    fromAddress: config.fromAddress as Address,
+    contractName
   });
-  
-  return {
-    transactionHash: deploymentResult.transactionHash,
-    contractAddress: deploymentResult.contractAddress,
-    blockNumber: BigInt(0), // TODO: Get from transaction receipt
-    gasUsed: BigInt(0), // TODO: Get from transaction receipt
-    status: 'completed',
-    verificationStatus: config.verifyContracts ? 'pending' : undefined
-  };
 }
 
 /**
- * Deploy the governor contract for the DAO
+ * Prepare governor contract deployment transaction
+ * Note: This generates a template that needs token and timelock addresses filled in
  */
-async function deployGovernorContract(
+async function prepareGovernorDeployment(
   config: z.infer<typeof DeployDAOInputSchema>,
   networkConfig: any,
-  contractName: string,
-  tokenAddress: string,
-  timelockAddress: string
-): Promise<DeploymentResult> {
+  contractName: string
+): Promise<PreparedTransaction> {
   
   // Load contract bytecode
   console.log(`📝 Loading ${contractName} contract...`);
   const contractABI = await loadContractABI(contractName as ContractName);
   
   if (!contractABI.bytecode) {
-    throw new Error(`No bytecode found for ${contractName}. Please ensure contracts are compiled.`);
+    throw new TransactionError(`No bytecode found for ${contractName}. Please ensure contracts are compiled.`);
   }
   
+  // Use placeholder addresses - these need to be updated after deploying token and timelock
+  const PLACEHOLDER_TOKEN_ADDRESS = "0x0000000000000000000000000000000000000001";
+  const PLACEHOLDER_TIMELOCK_ADDRESS = "0x0000000000000000000000000000000000000002";
+  
   const constructorArgs = prepareGovernorConstructorArgs({
-    tokenAddress,
-    timelockAddress,
+    tokenAddress: PLACEHOLDER_TOKEN_ADDRESS,
+    timelockAddress: PLACEHOLDER_TIMELOCK_ADDRESS,
     votingDelay: config.governorSettings.votingDelay,
     votingPeriod: config.governorSettings.votingPeriod,
     proposalThreshold: config.governorSettings.proposalThreshold,
     quorumPercentage: config.governorSettings.quorumPercentage
   });
   
-  // Deploy using Ledger
-  const deploymentResult = await deployContractWithLedger({
+  const preparedTx = await prepareContractDeployment({
     networkConfig,
     contractBytecode: contractABI.bytecode as Hex,
     constructorArgs,
-    gasEstimateMultiplier: 1.2
+    gasEstimateMultiplier: 1.2,
+    fromAddress: config.fromAddress as Address,
+    contractName
   });
   
+  // Add warning about placeholder addresses
+  preparedTx.metadata.description += ' ⚠️ REQUIRES UPDATING: Replace placeholder addresses with actual token and timelock addresses';
+  
+  return preparedTx;
+}
+
+/**
+ * Generate detailed deployment instructions
+ */
+export function generateDAODeploymentInstructions(plan: DAODeploymentPlan): string {
+  const sections = [
+    '# 🏛️ DAO Deployment Instructions',
+    '',
+    `**DAO Name:** ${plan.metadata.daoName}`,
+    `**Network:** ${plan.metadata.networkName}`,
+    `**Factory:** ${plan.metadata.factoryAddress}`,
+    `**Total Estimated Cost:** ${plan.metadata.totalEstimatedCost} ETH`,
+    '',
+    '## 🚨 IMPORTANT: Sequential Deployment Required',
+    '',
+    '⚠️ **Address Dependencies**: These contracts must be deployed in order because:',
+    '- Governor contract needs the Token contract address',
+    '- Governor contract needs the Timelock contract address',
+    '',
+    '## 📋 Step-by-Step Process',
+    '',
+    '### Step 1: Deploy Token Contract 🪙',
+    '',
+    '**Transaction Details:**',
+    `- Contract: ${plan.step1_token.metadata.contractName}`,
+    `- Estimated Gas: ${plan.step1_token.metadata.estimatedGasUsage.toLocaleString()}`,
+    `- Estimated Cost: ${plan.step1_token.metadata.estimatedCostEth} ETH`,
+    '',
+    '**Process:**',
+    '1. Sign and broadcast the token deployment transaction using your MCP Ledger server',
+    '2. Wait for transaction confirmation',
+    '3. **SAVE THE TOKEN CONTRACT ADDRESS** - you will need it for Step 3',
+    '',
+    '### Step 2: Deploy Timelock Contract ⏰',
+    '',
+    '**Transaction Details:**',
+    `- Contract: ${plan.step2_timelock.metadata.contractName}`,
+    `- Estimated Gas: ${plan.step2_timelock.metadata.estimatedGasUsage.toLocaleString()}`,
+    `- Estimated Cost: ${plan.step2_timelock.metadata.estimatedCostEth} ETH`,
+    '',
+    '**Process:**',
+    '1. Sign and broadcast the timelock deployment transaction using your MCP Ledger server',
+    '2. Wait for transaction confirmation',
+    '3. **SAVE THE TIMELOCK CONTRACT ADDRESS** - you will need it for Step 3',
+    '',
+    '### Step 3: Deploy Governor Contract 🏛️',
+    '',
+    '**Transaction Details:**',
+    `- Contract: ${plan.step3_governor.metadata.contractName}`,
+    `- Estimated Gas: ${plan.step3_governor.metadata.estimatedGasUsage.toLocaleString()}`,
+    `- Estimated Cost: ${plan.step3_governor.metadata.estimatedCostEth} ETH`,
+    '',
+    '**⚠️ CRITICAL: Update Transaction Before Signing**',
+    '',
+    'The governor transaction contains placeholder addresses that must be replaced:',
+    '```',
+    'Replace: 0x0000000000000000000000000000000000000001',
+    'With:    [Your Token Contract Address from Step 1]',
+    '',
+    'Replace: 0x0000000000000000000000000000000000000002', 
+    'With:    [Your Timelock Contract Address from Step 2]',
+    '```',
+    '',
+    '**Process:**',
+    '1. Update the transaction data with real token and timelock addresses',
+    '2. Sign and broadcast the updated governor transaction using your MCP Ledger server',  
+    '3. Wait for transaction confirmation',
+    '4. **SAVE THE GOVERNOR CONTRACT ADDRESS** - this is your main DAO contract',
+    '',
+    '## ✅ Post-Deployment Steps',
+    '',
+    '1. **Verify Contracts** (if enabled)',
+    '   - Use the verify-contract tool for each deployed contract',
+    '',
+    '2. **Set Up Governance**',
+    '   - Token holders can now create and vote on proposals',
+    '   - Proposals are executed through the timelock for security',
+    '',
+    '3. **Save Contract Addresses**',
+    '   - Token: `[Address from Step 1]`',
+    '   - Timelock: `[Address from Step 2]`', 
+    '   - Governor: `[Address from Step 3]`',
+    '',
+    '## 🔧 Technical Notes',
+    '',
+    '**Transaction Preparation Only**: This tool only prepares transactions for signing.',
+    'You must use your MCP Ledger server for signing and broadcasting.',
+    '',
+    '**Address Dependencies**: The governor contract constructor requires both',
+    'token and timelock addresses, which is why they must be deployed first.',
+    '',
+    '**Gas Estimates**: All gas estimates include a 20% buffer for safety.',
+    `**Total Cost**: Approximately ${plan.metadata.totalEstimatedCost} ETH plus any failed transaction costs.`,
+    ''
+  ];
+  
+  return sections.join('\n');
+}
+
+/**
+ * Update governor transaction with real addresses
+ */
+export function updateGovernorTransaction(
+  governorTx: PreparedTransaction,
+  tokenAddress: string,
+  timelockAddress: string
+): PreparedTransaction {
+  
+  if (!tokenAddress.startsWith('0x') || tokenAddress.length !== 42) {
+    throw new TransactionError('Invalid token address format');
+  }
+  
+  if (!timelockAddress.startsWith('0x') || timelockAddress.length !== 42) {
+    throw new TransactionError('Invalid timelock address format');
+  }
+  
+  // Update the transaction data by replacing placeholder addresses
+  let updatedData = governorTx.unsignedTransaction.data;
+  
+  // Replace placeholders with actual addresses (remove 0x prefix for replacement)
+  updatedData = updatedData.replace(
+    '0000000000000000000000000000000000000001',
+    tokenAddress.slice(2)
+  ) as Hex;
+  
+  updatedData = updatedData.replace(
+    '0000000000000000000000000000000000000002',
+    timelockAddress.slice(2)
+  ) as Hex;
+  
   return {
-    transactionHash: deploymentResult.transactionHash,
-    contractAddress: deploymentResult.contractAddress,
-    blockNumber: BigInt(0), // TODO: Get from transaction receipt
-    gasUsed: BigInt(0), // TODO: Get from transaction receipt
-    status: 'completed',
-    verificationStatus: config.verifyContracts ? 'pending' : undefined
+    ...governorTx,
+    unsignedTransaction: {
+      ...governorTx.unsignedTransaction,
+      data: updatedData
+    },
+    metadata: {
+      ...governorTx.metadata,
+      description: governorTx.metadata.description.replace(' ⚠️ REQUIRES UPDATING: Replace placeholder addresses with actual token and timelock addresses', ' ✅ Updated with real token and timelock addresses')
+    }
   };
 }
 
 /**
- * Generate a summary of the DAO deployment for display
+ * Get DAO deployment summary
  */
-export function formatDAODeploymentSummary(result: DAODeploymentResult): string {
-  const deploymentTime = result.deploymentEndTime && result.deploymentStartTime
-    ? Math.round((result.deploymentEndTime.getTime() - result.deploymentStartTime.getTime()) / 1000)
-    : 0;
-    
-  const sections = [
-    `# 🏛️ DAO Deployment Summary: "${result.daoName}"`,
-    '',
-    `**Network:** ${result.networkName}`,
-    `**Status:** ${result.deploymentStatus}`,
-    `**Total Gas Used:** ${result.totalGasUsed.toLocaleString()}`,
-    `**Deployment Time:** ${deploymentTime}s`,
-    '',
-    '## 📄 Deployed Contracts',
-    '',
-    '### 🪙 Token Contract',
-    `- **Address:** \`${result.contracts.token.contractAddress}\``,
-    `- **Transaction:** \`${result.contracts.token.transactionHash}\``,
-    `- **Gas Used:** ${result.contracts.token.gasUsed.toLocaleString()}`,
-    '',
-    '### ⏰ Timelock Contract',
-    `- **Address:** \`${result.contracts.timelock.contractAddress}\``,
-    `- **Transaction:** \`${result.contracts.timelock.transactionHash}\``,
-    `- **Gas Used:** ${result.contracts.timelock.gasUsed.toLocaleString()}`,
-    '',
-    '### 🏛️ Governor Contract',
-    `- **Address:** \`${result.contracts.governor.contractAddress}\``,
-    `- **Transaction:** \`${result.contracts.governor.transactionHash}\``,
-    `- **Gas Used:** ${result.contracts.governor.gasUsed.toLocaleString()}`,
-    ''
-  ];
-  
-  if (result.contracts.token.verificationStatus) {
-    sections.push(
-      '## ✅ Verification Status',
-      `- **Token:** ${result.contracts.token.verificationStatus}`,
-      `- **Timelock:** ${result.contracts.timelock.verificationStatus}`,
-      `- **Governor:** ${result.contracts.governor.verificationStatus}`,
-      ''
-    );
-  }
-  
-  sections.push(
-    '## 📋 Next Steps',
-    '1. Configure governance parameters',
-    '2. Set up token distribution',
-    '3. Create initial proposals',
-    '4. Engage community members',
-    '',
-    '## 🔗 Important Addresses',
-    `**Governor (Main DAO):** \`${result.contracts.governor.contractAddress}\``,
-    `**Token (Voting Power):** \`${result.contracts.token.contractAddress}\``,
-    `**Timelock (Treasury):** \`${result.contracts.timelock.contractAddress}\``
-  );
-  
-  return sections.join('\n');
+export function getDAODeploymentSummary(plan: DAODeploymentPlan): string {
+  return `🏛️ DAO Deployment Summary
+
+DAO Name: ${plan.metadata.daoName}
+Network: ${plan.metadata.networkName}
+Factory: ${plan.metadata.factoryAddress}
+
+Contracts to Deploy:
+1. 🪙 ${plan.step1_token.metadata.contractName} (${plan.step1_token.metadata.estimatedCostEth} ETH)
+2. ⏰ ${plan.step2_timelock.metadata.contractName} (${plan.step2_timelock.metadata.estimatedCostEth} ETH)  
+3. 🏛️ ${plan.step3_governor.metadata.contractName} (${plan.step3_governor.metadata.estimatedCostEth} ETH)
+
+Total Estimated Cost: ${plan.metadata.totalEstimatedCost} ETH
+
+⚠️  Sequential deployment required - see instructions for details`;
 }
 
 /**
@@ -321,32 +396,40 @@ export async function validateDAODeploymentPrerequisites(config: z.infer<typeof 
     issues.push(`Unsupported network: ${config.networkName}`);
   }
   
-  // Validate factory address format
-  if (!config.factoryAddress.match(/^0x[a-fA-F0-9]{40}$/)) {
-    issues.push('Invalid factory address format');
+  // Check factory address format
+  if (!config.factoryAddress.startsWith('0x') || config.factoryAddress.length !== 42) {
+    issues.push('Factory address must be a valid Ethereum address format');
   }
   
-  // Validate token settings
-  if (config.tokenSymbol.length > 10) {
-    issues.push('Token symbol too long (max 10 characters)');
+  // Check from address format if provided
+  if (config.fromAddress && (!config.fromAddress.startsWith('0x') || config.fromAddress.length !== 42)) {
+    issues.push('fromAddress must be a valid Ethereum address format (0x...)');
   }
   
-  // Validate governance settings
+  // Validate proposer and executor addresses
+  for (const proposer of config.timelockSettings.proposers) {
+    if (!proposer.startsWith('0x') || proposer.length !== 42) {
+      issues.push(`Invalid proposer address format: ${proposer}`);
+    }
+  }
+  
+  for (const executor of config.timelockSettings.executors) {
+    if (!executor.startsWith('0x') || executor.length !== 42) {
+      issues.push(`Invalid executor address format: ${executor}`);
+    }
+  }
+  
+  // Validate numeric fields
   if (config.governorSettings.quorumPercentage < 1 || config.governorSettings.quorumPercentage > 100) {
-    issues.push('Quorum percentage must be between 1-100%');
+    issues.push('Quorum percentage must be between 1 and 100');
   }
   
-  // Validate timelock proposers and executors
-  const invalidAddresses = [...config.timelockSettings.proposers, ...config.timelockSettings.executors]
-    .filter(addr => !addr.match(/^0x[a-fA-F0-9]{40}$/));
-  
-  if (invalidAddresses.length > 0) {
-    issues.push(`Invalid addresses in timelock settings: ${invalidAddresses.join(', ')}`);
+  if (config.governorSettings.votingDelay < 1) {
+    issues.push('Voting delay must be at least 1 block');
   }
   
-  // Check hardware wallet configuration
-  if (config.useHardwareWallet && !config.hardwareWalletType) {
-    issues.push('Hardware wallet type must be specified when useHardwareWallet is true');
+  if (config.governorSettings.votingPeriod < 100) {
+    issues.push('Voting period should be at least 100 blocks for security');
   }
   
   return issues;

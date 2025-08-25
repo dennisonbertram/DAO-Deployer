@@ -1,17 +1,17 @@
 import { z } from 'zod';
-import { deployContractWithLedger, checkLedgerStatus } from '../utils/ledger.js';
 import { getNetworkConfig, resolveNetworkConfig } from '../networks/index.js';
 import { loadContractABI, ContractName } from '../utils/contracts.js';
-import { FactoryDeploymentConfigSchema, FactoryDeploymentResult, HardwareWalletError } from '../types/index.js';
-import { Hex } from 'viem';
+import { prepareContractDeployment } from '../utils/transactions.js';
+import { FactoryDeploymentConfigSchema, PreparedTransaction, TransactionError } from '../types/index.js';
+import { Address, Hex } from 'viem';
 
 // Input validation schema for the deploy-factory tool
 export const DeployFactoryInputSchema = FactoryDeploymentConfigSchema;
 
 /**
- * Deploy a DAO factory contract to the specified network
+ * Prepare factory deployment transaction for external signing
  */
-export async function deployFactory(input: z.infer<typeof DeployFactoryInputSchema>): Promise<FactoryDeploymentResult> {
+export async function prepareFactoryDeployment(input: z.infer<typeof DeployFactoryInputSchema>): Promise<PreparedTransaction> {
   try {
     // Validate input
     const config = DeployFactoryInputSchema.parse(input);
@@ -22,125 +22,136 @@ export async function deployFactory(input: z.infer<typeof DeployFactoryInputSche
     // Determine factory contract to deploy
     const factoryContractName = config.factoryVersion === 'v2' ? 'SimpleDAOFactoryV2' : 'SimpleDAOFactory';
     
-    console.log(`\n🏭 Deploying ${factoryContractName} to ${networkConfig.name} (Chain ID: ${networkConfig.chainId})`);
+    console.log(`\n🔧 Preparing ${factoryContractName} deployment for ${networkConfig.name} (Chain ID: ${networkConfig.chainId})`);
     console.log(`📡 RPC URL: ${networkConfig.rpcUrl.replace(/\/v2\/.*/, '/v2/***')}`); // Hide API keys
-    console.log(`💳 Hardware Wallet: ${config.hardwareWalletType || 'None specified'}`);
     console.log(`✅ Verification: ${config.verifyContract ? 'Enabled' : 'Disabled'}`);
-    
-    // Check hardware wallet connection if required
-    if (config.useHardwareWallet && config.hardwareWalletType === 'ledger') {
-      console.log('🔍 Checking Ledger device status...');
-      const ledgerStatus = await checkLedgerStatus();
-      
-      if (!ledgerStatus.connected) {
-        throw new HardwareWalletError(
-          'Ledger device not connected. Please connect and unlock your Ledger device, then open the Ethereum app.'
-        );
-      }
-      
-      if (!ledgerStatus.ethereumAppOpen) {
-        throw new HardwareWalletError(
-          'Ethereum app not open on Ledger device. Please open the Ethereum app on your Ledger.'
-        );
-      }
-      
-      console.log(`✅ Ledger connected: ${ledgerStatus.address}`);
-    }
     
     // Load contract bytecode
     console.log(`📋 Loading ${factoryContractName} contract...`);
     const contractABI = await loadContractABI(factoryContractName as ContractName);
     
     if (!contractABI.bytecode) {
-      throw new Error(`No bytecode found for ${factoryContractName}. Please ensure contracts are compiled.`);
+      throw new TransactionError(`No bytecode found for ${factoryContractName}. Please ensure contracts are compiled.`);
     }
     
-    // Deploy the factory contract using Ledger
-    const deploymentResult = await deployContractWithLedger({
+    // Prepare the deployment transaction
+    const preparedTransaction = await prepareContractDeployment({
       networkConfig,
       contractBytecode: contractABI.bytecode as Hex,
       constructorArgs: [], // Factory contracts typically don't need constructor args
-      gasEstimateMultiplier: config.gasEstimateMultiplier
+      gasEstimateMultiplier: config.gasEstimateMultiplier,
+      fromAddress: config.fromAddress as Address,
+      contractName: factoryContractName
     });
     
-    // TODO: Implement contract verification if requested
-    let verificationStatus: 'verified' | 'pending' | 'failed' | undefined;
-    let verificationUrl: string | undefined;
+    console.log(`\n✅ Factory deployment transaction prepared successfully!`);
+    console.log(`📋 Contract: ${factoryContractName}`);
+    console.log(`🌐 Network: ${networkConfig.name}`);
+    console.log(`⛽ Estimated Gas: ${preparedTransaction.metadata.estimatedGasUsage.toLocaleString()}`);
+    console.log(`💸 Estimated Cost: ${preparedTransaction.metadata.estimatedCostEth} ETH`);
     
     if (config.verifyContract && networkConfig.explorerApiUrl) {
-      console.log('⏳ Contract verification not yet implemented with direct Ledger deployment');
-      console.log('💡 You can manually verify at:', `${networkConfig.explorerUrl}/address/${deploymentResult.contractAddress}#code`);
-      verificationStatus = 'pending';
-      verificationUrl = `${networkConfig.explorerUrl}/address/${deploymentResult.contractAddress}#code`;
+      console.log(`\n📋 Next Steps:`);
+      console.log(`1. Sign and broadcast this transaction using your MCP Ledger server`);
+      console.log(`2. Wait for transaction confirmation`);
+      console.log(`3. Use the verify-contract tool with the deployed address`);
+    } else {
+      console.log(`\n📋 Next Steps:`);
+      console.log(`1. Sign and broadcast this transaction using your MCP Ledger server`);
+      console.log(`2. Save the factory address for DAO deployments`);
+      console.log(`3. Fund your deployment account for DAO creations`);
     }
     
-    // Construct result object
-    const result: FactoryDeploymentResult = {
-      factoryVersion: config.factoryVersion,
-      networkName: config.networkName,
-      transactionHash: deploymentResult.transactionHash,
-      contractAddress: deploymentResult.contractAddress,
-      blockNumber: BigInt(0), // TODO: Get block number from transaction receipt
-      gasUsed: BigInt(0), // TODO: Get gas used from transaction receipt
-      status: 'completed',
-      verificationStatus,
-      verificationUrl
-    };
-    
-    console.log(`\n🎉 Factory deployment completed successfully!`);
-    console.log(`📄 Contract Address: ${result.contractAddress}`);
-    console.log(`🔗 Transaction: ${networkConfig.explorerUrl}/tx/${result.transactionHash}`);
-    console.log(`⛽ Gas Used: ${result.gasUsed.toLocaleString()}`);
-    
-    if (result.verificationUrl) {
-      console.log(`✅ Verification: ${result.verificationUrl}`);
-    }
-    
-    return result;
+    return preparedTransaction;
     
   } catch (error: any) {
-    console.error('❌ Factory deployment failed:', error.message);
+    console.error('❌ Factory deployment preparation failed:', error.message);
     throw error;
   }
 }
 
 /**
- * Generate a summary of the factory deployment for display
+ * Generate deployment instructions for the user
  */
-export function formatFactoryDeploymentSummary(result: FactoryDeploymentResult): string {
+export function generateFactoryDeploymentInstructions(
+  preparedTx: PreparedTransaction,
+  config: z.infer<typeof DeployFactoryInputSchema>
+): string {
   const sections = [
-    '# 🏭 Factory Deployment Summary',
+    '# 🏭 Factory Deployment Instructions',
     '',
-    `**Factory Version:** ${result.factoryVersion.toUpperCase()}`,
-    `**Network:** ${result.networkName}`,
-    `**Status:** ${result.status}`,
+    `**Factory Version:** ${config.factoryVersion.toUpperCase()}`,
+    `**Network:** ${preparedTx.metadata.networkName}`,
+    `**Contract:** ${preparedTx.metadata.contractName}`,
     '',
-    '## 📄 Contract Details',
-    `- **Address:** \`${result.contractAddress}\``,
-    `- **Transaction:** \`${result.transactionHash}\``,
-    `- **Block Number:** ${result.blockNumber.toString()}`,
-    `- **Gas Used:** ${result.gasUsed.toLocaleString()}`,
+    '## 🔧 Transaction Details',
+    '',
+    '```json',
+    JSON.stringify({
+      to: preparedTx.unsignedTransaction.to,
+      value: preparedTx.unsignedTransaction.value,
+      data: preparedTx.unsignedTransaction.data.slice(0, 100) + '...',
+      gas: preparedTx.unsignedTransaction.gas?.toString(),
+      gasPrice: preparedTx.unsignedTransaction.gasPrice?.toString(),
+      chainId: preparedTx.unsignedTransaction.chainId
+    }, null, 2),
+    '```',
+    '',
+    '## 💰 Cost Estimation',
+    `- **Gas Limit:** ${preparedTx.metadata.estimatedGasUsage.toLocaleString()}`,
+    `- **Gas Price:** ${preparedTx.unsignedTransaction.gasPrice ? (Number(preparedTx.unsignedTransaction.gasPrice) / 1e9).toFixed(2) + ' gwei' : 'Dynamic'}`,
+    `- **Estimated Cost:** ${preparedTx.metadata.estimatedCostEth} ETH`,
+    '',
+    '## 📋 Deployment Process',
+    '',
+    '### Step 1: Sign Transaction with MCP Ledger Server',
+    '```bash',
+    '# Use your MCP Ledger server to sign this transaction',
+    '# The server will handle the signing process securely',
+    '```',
+    '',
+    '### Step 2: Broadcast Transaction',
+    '```bash',
+    '# After signing, broadcast the transaction to the network',
+    '# The MCP Ledger server can also handle broadcasting',
+    '```',
+    '',
+    '### Step 3: Verify Deployment',
+    '```bash',
+    '# Once confirmed, verify the contract (if enabled)',
+    '# Use the verify-contract tool with the deployed address',
+    '```',
     ''
   ];
   
-  if (result.verificationStatus) {
+  if (config.verifyContract) {
     sections.push(
-      '## ✅ Verification',
-      `- **Status:** ${result.verificationStatus}`,
-      result.verificationUrl ? `- **Explorer:** ${result.verificationUrl}` : '',
+      '## ✅ Verification Setup',
+      `- **Block Explorer:** Available for ${preparedTx.metadata.networkName}`,
+      '- **Auto-verification:** Use verify-contract tool after deployment',
+      '- **Manual verification:** Check block explorer after deployment',
       ''
     );
   }
   
   sections.push(
-    '## 📋 Next Steps',
-    '1. Save the factory address for DAO deployments',
-    '2. Fund your deployment account for DAO creations',
-    '3. Use the `deploy-dao` tool to create DAOs through this factory',
+    '## 🚨 Important Notes',
+    '',
+    '⚠️ **Transaction Preparation Only**',
+    'This tool prepares the deployment transaction but does not execute it.',
+    'You must use your MCP Ledger server to sign and broadcast the transaction.',
+    '',
+    '⚠️ **Save Factory Address**',  
+    'After successful deployment, save the factory contract address.',
+    'You will need it for deploying DAOs using the deploy-dao tool.',
+    '',
+    '⚠️ **Network Fees**',
+    'Ensure your account has sufficient native tokens for gas fees.',
+    `Current estimate: ${preparedTx.metadata.estimatedCostEth} ETH`,
     ''
   );
   
-  return sections.filter(line => line !== '').join('\n');
+  return sections.join('\n');
 }
 
 /**
@@ -156,9 +167,9 @@ export async function validateFactoryDeploymentPrerequisites(config: z.infer<typ
     issues.push(`Unsupported network: ${config.networkName}`);
   }
   
-  // Check hardware wallet configuration
-  if (config.useHardwareWallet && !config.hardwareWalletType) {
-    issues.push('Hardware wallet type must be specified when useHardwareWallet is true');
+  // Check from address format if provided
+  if (config.fromAddress && (!config.fromAddress.startsWith('0x') || config.fromAddress.length !== 42)) {
+    issues.push('fromAddress must be a valid Ethereum address format (0x...)');
   }
   
   // Check verification prerequisites
@@ -170,4 +181,23 @@ export async function validateFactoryDeploymentPrerequisites(config: z.infer<typ
   }
   
   return issues;
+}
+
+/**
+ * Get factory deployment summary for display
+ */
+export function getFactoryDeploymentSummary(
+  preparedTx: PreparedTransaction,
+  config: z.infer<typeof DeployFactoryInputSchema>
+): string {
+  return `🏭 Factory Deployment Summary
+  
+Contract: ${preparedTx.metadata.contractName}
+Version: ${config.factoryVersion.toUpperCase()}
+Network: ${preparedTx.metadata.networkName} (Chain ID: ${preparedTx.metadata.networkChainId})
+Estimated Gas: ${preparedTx.metadata.estimatedGasUsage.toLocaleString()}
+Estimated Cost: ${preparedTx.metadata.estimatedCostEth} ETH
+Verification: ${config.verifyContract ? 'Enabled' : 'Disabled'}
+
+⚠️  Transaction prepared - use MCP Ledger server for signing and broadcasting`;
 }

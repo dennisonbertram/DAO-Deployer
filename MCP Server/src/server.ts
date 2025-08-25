@@ -10,8 +10,27 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 
 // Import tool implementations
-import { deployFactory, DeployFactoryInputSchema, formatFactoryDeploymentSummary } from './tools/deploy-factory.js';
-import { deployDAO, DeployDAOInputSchema, formatDAODeploymentSummary } from './tools/deploy-dao.js';
+import { 
+  prepareFactoryDeployment, 
+  DeployFactoryInputSchema, 
+  generateFactoryDeploymentInstructions,
+  getFactoryDeploymentSummary
+} from './tools/deploy-factory.js';
+import { 
+  prepareDAODeploymentPlan, 
+  DeployDAOInputSchema, 
+  generateDAODeploymentInstructions,
+  getDAODeploymentSummary,
+  updateGovernorTransaction
+} from './tools/deploy-dao.js';
+import { 
+  broadcastSignedTransaction,
+  waitForConfirmation,
+  checkTransactionStatus,
+  BroadcastTransactionInputSchema,
+  WaitForConfirmationInputSchema,
+  CheckTransactionStatusInputSchema
+} from './tools/broadcast-transaction.js';
 import { listNetworks, formatNetworkList } from './tools/list-networks.js';
 import { verifyContract, VerifyContractInputSchema, formatVerificationResults } from './tools/verify-contract.js';
 import { getDeploymentInfo, GetDeploymentInfoInputSchema, formatDeploymentInfo } from './tools/deployment-info.js';
@@ -56,7 +75,7 @@ export async function createServer(): Promise<Server> {
     {
       name: 'dao-deployer-mcp-server',
       version: '1.0.0',
-      description: 'Model Context Protocol server for deploying DAO factories and DAOs to any network with hardware wallet support'
+      description: 'Model Context Protocol server for preparing DAO deployment transactions with external signing support'
     },
     {
       capabilities: {
@@ -71,8 +90,8 @@ export async function createServer(): Promise<Server> {
     return {
       tools: [
         {
-          name: 'deploy-factory',
-          description: 'Deploy a DAO factory contract to any supported blockchain network using hardware wallet for secure key management',
+          name: 'prepare-factory-deployment',
+          description: 'Prepare a DAO factory deployment transaction for external signing (use with MCP Ledger server)',
           inputSchema: {
             type: 'object',
             properties: {
@@ -91,28 +110,22 @@ export async function createServer(): Promise<Server> {
                 default: true,
                 description: 'Whether to verify the contract on the block explorer'
               },
-              useHardwareWallet: {
-                type: 'boolean',
-                default: true,
-                description: 'Whether to use a hardware wallet for deployment'
-              },
-              hardwareWalletType: {
-                type: 'string',
-                enum: ['ledger', 'trezor'],
-                description: 'Type of hardware wallet to use (required if useHardwareWallet is true)'
-              },
               gasEstimateMultiplier: {
                 type: 'number',
                 default: 1.2,
                 description: 'Multiplier for gas estimate (e.g., 1.2 = 120% of estimated gas)'
+              },
+              fromAddress: {
+                type: 'string',
+                description: 'Address to deploy from (optional, used for gas estimation)'
               }
             },
             required: ['networkName']
           }
         },
         {
-          name: 'deploy-dao',
-          description: 'Deploy a complete DAO system (token, governor, timelock) to any supported blockchain network',
+          name: 'prepare-dao-deployment',
+          description: 'Prepare a complete DAO deployment plan with all three transactions (token, timelock, governor)',
           inputSchema: {
             type: 'object',
             properties: {
@@ -182,28 +195,90 @@ export async function createServer(): Promise<Server> {
                 },
                 required: ['minDelay', 'proposers', 'executors']
               },
-              useHardwareWallet: {
-                type: 'boolean',
-                default: true,
-                description: 'Whether to use a hardware wallet for deployment'
-              },
-              hardwareWalletType: {
-                type: 'string',
-                enum: ['ledger', 'trezor'],
-                description: 'Type of hardware wallet to use'
-              },
               verifyContracts: {
                 type: 'boolean',
                 default: true,
                 description: 'Whether to verify all contracts on the block explorer'
+              },
+              fromAddress: {
+                type: 'string',
+                description: 'Address to deploy from (optional, used for gas estimation)'
               }
             },
             required: ['networkName', 'factoryAddress', 'daoName', 'tokenName', 'tokenSymbol', 'initialSupply', 'governorSettings', 'timelockSettings']
           }
         },
         {
+          name: 'broadcast-signed-transaction',
+          description: '🚨 NOT IMPLEMENTED: Guidance for using MCP Ledger server to broadcast signed transactions',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              signedTransaction: {
+                type: 'string',
+                description: 'The signed transaction hash'
+              },
+              networkName: {
+                type: 'string',
+                description: 'Name of the blockchain network'
+              },
+              expectedTransactionHash: {
+                type: 'string',
+                description: 'Expected transaction hash (optional)'
+              }
+            },
+            required: ['signedTransaction', 'networkName']
+          }
+        },
+        {
+          name: 'wait-for-confirmation',
+          description: 'Wait for transaction confirmation on the blockchain',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              transactionHash: {
+                type: 'string',
+                description: 'Transaction hash to wait for confirmation'
+              },
+              networkName: {
+                type: 'string',
+                description: 'Name of the blockchain network'
+              },
+              confirmations: {
+                type: 'number',
+                default: 1,
+                description: 'Number of confirmations to wait for (1-20)'
+              },
+              timeoutMinutes: {
+                type: 'number',
+                default: 10,
+                description: 'Timeout in minutes (1-30)'
+              }
+            },
+            required: ['transactionHash', 'networkName']
+          }
+        },
+        {
+          name: 'check-transaction-status',
+          description: 'Check the current status of a transaction',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              transactionHash: {
+                type: 'string',
+                description: 'Transaction hash to check'
+              },
+              networkName: {
+                type: 'string',
+                description: 'Name of the blockchain network'
+              }
+            },
+            required: ['transactionHash', 'networkName']
+          }
+        },
+        {
           name: 'list-networks',
-          description: 'List all supported blockchain networks with their configuration details',
+          description: 'List all supported blockchain networks and their configurations',
           inputSchema: {
             type: 'object',
             properties: {
@@ -213,7 +288,7 @@ export async function createServer(): Promise<Server> {
                 description: 'Whether to include testnet networks in the list'
               },
               includeMainnets: {
-                type: 'boolean',
+                type: 'boolean', 
                 default: true,
                 description: 'Whether to include mainnet networks in the list'
               }
@@ -222,7 +297,7 @@ export async function createServer(): Promise<Server> {
         },
         {
           name: 'verify-contract',
-          description: 'Verify a deployed contract on its blockchain explorer',
+          description: 'Verify a deployed contract on the block explorer',
           inputSchema: {
             type: 'object',
             properties: {
@@ -230,22 +305,25 @@ export async function createServer(): Promise<Server> {
                 type: 'string',
                 description: 'Address of the deployed contract to verify'
               },
-              contractName: {
-                type: 'string',
-                description: 'Name of the contract (must match compiled contract name)'
-              },
               networkName: {
                 type: 'string',
-                description: 'Name of the blockchain network where the contract is deployed'
+                description: 'Name of the blockchain network'
+              },
+              contractName: {
+                type: 'string',
+                description: 'Name of the contract (e.g., "SimpleDAOFactory")'
               },
               constructorArgs: {
                 type: 'array',
-                items: { type: 'string' },
-                default: [],
-                description: 'Constructor arguments used when deploying the contract'
+                description: 'Constructor arguments used during deployment'
+              },
+              optimizationRuns: {
+                type: 'number',
+                default: 200,
+                description: 'Number of optimization runs used during compilation'
               }
             },
-            required: ['contractAddress', 'contractName', 'networkName']
+            required: ['contractAddress', 'networkName', 'contractName']
           }
         },
         {
@@ -256,26 +334,16 @@ export async function createServer(): Promise<Server> {
             properties: {
               contractAddress: {
                 type: 'string',
-                description: 'Address of the contract to get information about'
+                description: 'Address of the deployed contract'
               },
               networkName: {
                 type: 'string',
-                description: 'Name of the blockchain network where the contract is deployed'
-              },
-              includeABI: {
-                type: 'boolean',
-                default: false,
-                description: 'Whether to include the contract ABI in the response'
+                description: 'Name of the blockchain network'
               },
               includeTransactionDetails: {
                 type: 'boolean',
-                default: true,
-                description: 'Whether to include deployment transaction details'
-              },
-              checkVerification: {
-                type: 'boolean',
-                default: true,
-                description: 'Whether to check if the contract is verified on the explorer'
+                default: false,
+                description: 'Whether to include detailed transaction information'
               }
             },
             required: ['contractAddress', 'networkName']
@@ -283,7 +351,7 @@ export async function createServer(): Promise<Server> {
         },
         {
           name: 'set-api-key',
-          description: 'Set and save an API key for blockchain services (Alchemy, Etherscan, etc.)',
+          description: 'Set an API key for blockchain services (stored securely)',
           inputSchema: {
             type: 'object',
             properties: {
@@ -344,63 +412,26 @@ export async function createServer(): Promise<Server> {
           }
         },
         {
-          name: 'set-multiple-api-keys',
-          description: 'Set multiple API keys at once',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              apiKeys: {
-                type: 'object',
-                additionalProperties: {
-                  type: 'string'
-                },
-                description: 'Object with API key names as keys and API key values as values'
-              }
-            },
-            required: ['apiKeys']
-          }
-        },
-        {
-          name: 'import-api-keys-from-env',
-          description: 'Import API keys from environment variables and save them',
-          inputSchema: {
-            type: 'object',
-            properties: {}
-          }
-        },
-        {
-          name: 'reset-api-keys',
-          description: 'Reset all API key configuration (creates backup first)',
-          inputSchema: {
-            type: 'object',
-            properties: {}
-          }
-        },
-        {
-          name: 'get-config-info',
-          description: 'Get information about the API key configuration file',
-          inputSchema: {
-            type: 'object',
-            properties: {}
-          }
-        },
-        {
           name: 'generate-ephemeral-wallet',
-          description: 'Generate a temporary wallet with software-managed private key for funding deployments',
+          description: 'Generate a temporary wallet for deployment funding (test networks only)',
           inputSchema: {
             type: 'object',
             properties: {
               networkName: {
                 type: 'string',
-                description: 'Name of the blockchain network to generate wallet for'
+                description: 'Name of the blockchain network (must be testnet)'
+              },
+              walletName: {
+                type: 'string',
+                description: 'Optional name for the wallet'
               }
             },
             required: ['networkName']
           }
         },
         {
-          name: 'list-ephemeral-wallets', 
-          description: 'List all ephemeral wallets created for temporary funding',
+          name: 'list-ephemeral-wallets',
+          description: 'List all generated ephemeral wallets',
           inputSchema: {
             type: 'object',
             properties: {}
@@ -408,65 +439,20 @@ export async function createServer(): Promise<Server> {
         },
         {
           name: 'check-wallet-balance',
-          description: 'Check the balance of an ephemeral wallet to see if it has been funded',
+          description: 'Check the balance of a wallet address',
           inputSchema: {
             type: 'object',
             properties: {
-              walletAddress: {
+              address: {
                 type: 'string',
-                description: 'The wallet address to check balance for'
+                description: 'Wallet address to check'
               },
               networkName: {
                 type: 'string',
                 description: 'Name of the blockchain network'
               }
             },
-            required: ['walletAddress', 'networkName']
-          }
-        },
-        {
-          name: 'sweep-ephemeral-wallet',
-          description: 'Sweep all remaining funds from ephemeral wallet to specified recipient address',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              walletAddress: {
-                type: 'string',
-                description: 'The ephemeral wallet address to sweep funds from'
-              },
-              recipientAddress: {
-                type: 'string',
-                description: 'The recipient address to send all funds to'
-              },
-              networkName: {
-                type: 'string',
-                description: 'Name of the blockchain network'
-              },
-              deleteKeyAfterSweep: {
-                type: 'boolean',
-                default: false,
-                description: 'Whether to delete the private key after successful sweep (only if wallet is empty)'
-              }
-            },
-            required: ['walletAddress', 'recipientAddress', 'networkName']
-          }
-        },
-        {
-          name: 'delete-ephemeral-wallet',
-          description: 'Manually delete an ephemeral wallet (only works if wallet is empty)',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              walletAddress: {
-                type: 'string',
-                description: 'The wallet address to delete'
-              },
-              networkName: {
-                type: 'string',
-                description: 'Name of the blockchain network'
-              }
-            },
-            required: ['walletAddress', 'networkName']
+            required: ['address', 'networkName']
           }
         }
       ]
@@ -479,268 +465,193 @@ export async function createServer(): Promise<Server> {
 
     try {
       switch (name) {
-        case 'deploy-factory': {
-          // console.log('<� Executing deploy-factory tool...');
-          const validatedArgs = DeployFactoryInputSchema.parse(args);
-          const result = await deployFactory(validatedArgs);
-          const summary = formatFactoryDeploymentSummary(result);
+        case 'prepare-factory-deployment': {
+          const result = await prepareFactoryDeployment(args as any);
+          const instructions = generateFactoryDeploymentInstructions(result, args as any);
+          const summary = getFactoryDeploymentSummary(result, args as any);
           
           return {
             content: [
               {
                 type: 'text',
                 text: summary
+              },
+              {
+                type: 'text',
+                text: '\n\n' + instructions
               }
             ]
           };
         }
 
-        case 'deploy-dao': {
-          console.log('<� Executing deploy-dao tool...');
-          const validatedArgs = DeployDAOInputSchema.parse(args);
-          const result = await deployDAO(validatedArgs);
-          const summary = formatDAODeploymentSummary(result);
+        case 'prepare-dao-deployment': {
+          const result = await prepareDAODeploymentPlan(args as any);
+          const instructions = generateDAODeploymentInstructions(result);
+          const summary = getDAODeploymentSummary(result);
           
           return {
             content: [
               {
                 type: 'text',
                 text: summary
+              },
+              {
+                type: 'text',
+                text: '\n\n' + instructions
+              }
+            ]
+          };
+        }
+
+        case 'broadcast-signed-transaction': {
+          const result = await broadcastSignedTransaction(args as any);
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify(result, null, 2)
+              }
+            ]
+          };
+        }
+
+        case 'wait-for-confirmation': {
+          const result = await waitForConfirmation(args as any);
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `✅ Transaction Confirmed!\n\n${JSON.stringify(result, null, 2)}`
+              }
+            ]
+          };
+        }
+
+        case 'check-transaction-status': {
+          const result = await checkTransactionStatus(args as any);
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify(result, null, 2)
               }
             ]
           };
         }
 
         case 'list-networks': {
-          console.log('< Executing list-networks tool...');
-          const result = await listNetworks(args as any);
+          const networks = await listNetworks(args as any);
           const format = (args as any)?.format || 'table';
-          const summary = formatNetworkList(result, format);
-          
+          const formatted = formatNetworkList(networks, format);
           return {
             content: [
               {
                 type: 'text',
-                text: summary
+                text: formatted
               }
             ]
           };
         }
 
         case 'verify-contract': {
-          console.log(' Executing verify-contract tool...');
-          const validatedArgs = VerifyContractInputSchema.parse(args);
-          const result = await verifyContract(validatedArgs);
-          const summary = formatVerificationResults([result]);
-          
+          const result = await verifyContract(args as any);
+          const formatted = formatVerificationResults([result]);
           return {
             content: [
               {
                 type: 'text',
-                text: summary
+                text: formatted
               }
             ]
           };
         }
 
         case 'get-deployment-info': {
-          console.log('=� Executing get-deployment-info tool...');
-          const validatedArgs = GetDeploymentInfoInputSchema.parse(args);
-          const result = await getDeploymentInfo(validatedArgs);
-          const summary = formatDeploymentInfo(result);
-          
+          const result = await getDeploymentInfo(args as any);
+          const formatted = formatDeploymentInfo(result);
           return {
             content: [
               {
                 type: 'text',
-                text: summary
+                text: formatted
               }
             ]
           };
         }
 
         case 'set-api-key': {
-          console.log('🔑 Executing set-api-key tool...');
-          const validatedArgs = SetAPIKeyInputSchema.parse(args);
-          const result = await setAPIKeyTool(validatedArgs);
-          const summary = formatAPIKeyResult(result);
-          
+          const result = await setAPIKeyTool(args as any);
+          const formatted = formatAPIKeyResult(result);
           return {
             content: [
               {
                 type: 'text',
-                text: summary
+                text: formatted
               }
             ]
           };
         }
 
         case 'remove-api-key': {
-          console.log('🗑️ Executing remove-api-key tool...');
-          const validatedArgs = RemoveAPIKeyInputSchema.parse(args);
-          const result = await removeAPIKeyTool(validatedArgs);
-          const summary = formatAPIKeyResult(result);
-          
+          const result = await removeAPIKeyTool(args as any);
+          const formatted = formatAPIKeyResult(result);
           return {
             content: [
               {
                 type: 'text',
-                text: summary
+                text: formatted
               }
             ]
           };
         }
 
         case 'list-api-keys': {
-          console.log('📋 Executing list-api-keys tool...');
           const result = await listAPIKeysTool();
-          const summary = formatAPIKeyResult(result);
-          
+          const formatted = formatAPIKeyResult(result);
           return {
             content: [
               {
                 type: 'text',
-                text: summary
-              }
-            ]
-          };
-        }
-
-        case 'set-multiple-api-keys': {
-          console.log('🔑 Executing set-multiple-api-keys tool...');
-          const validatedArgs = SetMultipleAPIKeysInputSchema.parse(args);
-          const result = await setMultipleAPIKeysTool(validatedArgs);
-          const summary = formatAPIKeyResult(result);
-          
-          return {
-            content: [
-              {
-                type: 'text',
-                text: summary
-              }
-            ]
-          };
-        }
-
-        case 'import-api-keys-from-env': {
-          console.log('📥 Executing import-api-keys-from-env tool...');
-          const result = await importAPIKeysFromEnvTool();
-          const summary = formatAPIKeyResult(result);
-          
-          return {
-            content: [
-              {
-                type: 'text',
-                text: summary
-              }
-            ]
-          };
-        }
-
-        case 'reset-api-keys': {
-          console.log('🔄 Executing reset-api-keys tool...');
-          const result = await resetAPIKeysTool();
-          const summary = formatAPIKeyResult(result);
-          
-          return {
-            content: [
-              {
-                type: 'text',
-                text: summary
-              }
-            ]
-          };
-        }
-
-        case 'get-config-info': {
-          console.log('📊 Executing get-config-info tool...');
-          const result = await getConfigInfoTool();
-          const summary = formatAPIKeyResult(result);
-          
-          return {
-            content: [
-              {
-                type: 'text',
-                text: summary
+                text: formatted
               }
             ]
           };
         }
 
         case 'generate-ephemeral-wallet': {
-          console.log('🔐 Executing generate-ephemeral-wallet tool...');
-          const validatedArgs = GenerateEphemeralWalletInputSchema.parse(args);
-          const result = await generateEphemeralWalletTool(validatedArgs);
-          const summary = formatEphemeralWalletResult(result);
-          
+          const result = await generateEphemeralWalletTool(args as any);
+          const formatted = formatEphemeralWalletResult(result);
           return {
             content: [
               {
                 type: 'text',
-                text: summary
+                text: formatted
               }
             ]
           };
         }
 
         case 'list-ephemeral-wallets': {
-          console.log('📋 Executing list-ephemeral-wallets tool...');
           const result = await listEphemeralWalletsTool();
-          const summary = formatEphemeralWalletResult(result);
-          
+          const formatted = formatEphemeralWalletResult(result);
           return {
             content: [
               {
                 type: 'text',
-                text: summary
+                text: formatted
               }
             ]
           };
         }
 
         case 'check-wallet-balance': {
-          console.log('💰 Executing check-wallet-balance tool...');
-          const validatedArgs = CheckWalletBalanceInputSchema.parse(args);
-          const result = await checkWalletBalanceTool(validatedArgs);
-          const summary = formatEphemeralWalletResult(result);
-          
+          const result = await checkWalletBalanceTool(args as any);
+          const formatted = formatEphemeralWalletResult(result);
           return {
             content: [
               {
                 type: 'text',
-                text: summary
-              }
-            ]
-          };
-        }
-
-        case 'sweep-ephemeral-wallet': {
-          console.log('💸 Executing sweep-ephemeral-wallet tool...');
-          const validatedArgs = SweepEphemeralWalletInputSchema.parse(args);
-          const result = await sweepEphemeralWalletTool(validatedArgs);
-          const summary = formatEphemeralWalletResult(result);
-          
-          return {
-            content: [
-              {
-                type: 'text',
-                text: summary
-              }
-            ]
-          };
-        }
-
-        case 'delete-ephemeral-wallet': {
-          console.log('🗑️ Executing delete-ephemeral-wallet tool...');
-          const validatedArgs = DeleteEphemeralWalletInputSchema.parse(args);
-          const result = await deleteEphemeralWalletTool(validatedArgs);
-          const summary = formatEphemeralWalletResult(result);
-          
-          return {
-            content: [
-              {
-                type: 'text',
-                text: summary
+                text: formatted
               }
             ]
           };
@@ -753,32 +664,21 @@ export async function createServer(): Promise<Server> {
           );
       }
     } catch (error: any) {
-      console.error(`L Tool execution failed for ${name}:`, error.message);
+      const errorMessage = error?.message || 'Unknown error occurred';
+      const errorName = error?.constructor?.name || 'Error';
       
-      // Handle validation errors
-      if (error.name === 'ZodError') {
-        throw new McpError(
-          ErrorCode.InvalidParams,
-          `Invalid parameters for ${name}: ${error.message}`
-        );
-      }
-      
-      // Handle hardware wallet errors
-      if (error.constructor.name === 'HardwareWalletError') {
-        throw new McpError(
-          ErrorCode.InternalError,
-          `Hardware wallet error: ${error.message}`
-        );
-      }
-      
-      throw new McpError(
-        ErrorCode.InternalError,
-        `Tool execution failed: ${error.message}`
-      );
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `❌ ${errorName}: ${errorMessage}`
+          }
+        ]
+      };
     }
   });
 
-  // List available resources
+  // List resources
   server.setRequestHandler(ListResourcesRequestSchema, async () => {
     const resources = await listResources();
     return { resources };
@@ -787,50 +687,44 @@ export async function createServer(): Promise<Server> {
   // Read resource content
   server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
     const { uri } = request.params;
+    const content = await readResource(uri);
     
-    try {
-      const content = await readResource(uri);
-      
-      return {
-        contents: [
-          {
-            uri,
-            mimeType: uri.includes('/contracts/source/') ? 'text/x-solidity' :
-                     uri.includes('/docs/') ? 'text/markdown' : 'application/json',
-            text: content
-          }
-        ]
-      };
-    } catch (error: any) {
-      throw new McpError(
-        ErrorCode.InternalError,
-        `Failed to read resource ${uri}: ${error.message}`
-      );
-    }
+    return {
+      contents: [
+        {
+          uri,
+          mimeType: uri.includes('/abi/') ? 'application/json' : 
+                    uri.includes('/source/') ? 'text/x-solidity' :
+                    uri.includes('/docs/') ? 'text/markdown' : 
+                    'application/json',
+          text: content
+        }
+      ]
+    };
   });
 
   return server;
 }
 
 /**
- * Start the MCP server with stdio transport
+ * Start the server
  */
-export async function startServer(): Promise<void> {
+export async function startServer() {
   const server = await createServer();
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error('🏛️ DAO Deployer MCP Server started successfully');
+  
+  // Re-enable console.log for startup message
+  console.log = originalLog;
+  console.log('🏛️ DAO Deployer MCP Server started with transaction preparation support');
+  console.log('💡 Use with MCP Ledger server for secure transaction signing');
+  console.log = () => {}; // Disable again for protocol compliance
 }
 
-/**
- * Stop the MCP server gracefully
- */
-export async function stopServer(server: Server): Promise<void> {
-  try {
-    await server.close();
-    console.error('=� DAO Deployer MCP Server stopped');
-  } catch (error) {
-    console.error('L Error stopping server:', error);
-    throw error;
-  }
+// Start server if running directly
+if (import.meta.url === `file://${process.argv[1]}`) {
+  startServer().catch((error) => {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  });
 }

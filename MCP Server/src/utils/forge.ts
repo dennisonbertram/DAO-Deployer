@@ -1,7 +1,7 @@
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
-import { HardwareWalletType, NetworkConfig, DeploymentError, HardwareWalletError } from '../types/index.js';
+import { NetworkConfig, DeploymentError, TransactionError } from '../types/index.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -10,7 +10,7 @@ export interface ForgeDeploymentOptions {
   contractName: string;
   constructorArgs?: string[];
   rpcUrl: string;
-  hardwareWalletType?: HardwareWalletType;
+  hardwareWalletType?: 'ledger' | 'trezor';
   verify?: boolean;
   verifierUrl?: string;
   etherscanApiKey?: string;
@@ -70,7 +70,7 @@ export async function deployContractWithForge(options: ForgeDeploymentOptions): 
     console.error('Forge deployment error:', error);
     
     if (error.code === 'ENOENT') {
-      throw new HardwareWalletError('Forge not found. Please install Foundry: https://getfoundry.sh/');
+      throw new TransactionError('Forge not found. Please install Foundry: https://getfoundry.sh/');
     }
     
     if (error.code === 'TIMEOUT') {
@@ -290,7 +290,7 @@ async function encodeConstructorArgs(args: string[]): Promise<string> {
 export async function runForgeScript(
   scriptPath: string,
   rpcUrl: string,
-  hardwareWalletType?: HardwareWalletType,
+  hardwareWalletType?: 'ledger' | 'trezor',
   broadcast: boolean = false,
   verify: boolean = false
 ): Promise<ForgeDeploymentResult> {

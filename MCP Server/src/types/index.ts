@@ -28,9 +28,10 @@ export const FactoryDeploymentConfigSchema = z.object({
   networkName: z.string(),
   factoryVersion: z.enum(['v1', 'v2']).default('v2'),
   verifyContract: z.boolean().default(true),
-  useHardwareWallet: z.boolean().default(true),
-  hardwareWalletType: z.enum(['ledger', 'trezor']).optional(),
-  gasEstimateMultiplier: z.number().default(1.2)
+  gasEstimateMultiplier: z.number().default(1.2),
+  fromAddress: z.string().refine((addr) => addr.startsWith('0x') && addr.length === 42, {
+    message: "Invalid Ethereum address format"
+  }).optional()
 });
 
 export type FactoryDeploymentConfig = z.infer<typeof FactoryDeploymentConfigSchema>;
@@ -56,9 +57,10 @@ export const DAODeploymentConfigSchema = z.object({
     proposers: z.array(z.string().refine((addr) => addr.startsWith('0x') && addr.length === 42)),
     executors: z.array(z.string().refine((addr) => addr.startsWith('0x') && addr.length === 42))
   }),
-  useHardwareWallet: z.boolean().default(true),
-  hardwareWalletType: z.enum(['ledger', 'trezor']).optional(),
-  verifyContracts: z.boolean().default(true)
+  verifyContracts: z.boolean().default(true),
+  fromAddress: z.string().refine((addr) => addr.startsWith('0x') && addr.length === 42, {
+    message: "Invalid Ethereum address format"
+  }).optional()
 });
 
 export type DAODeploymentConfig = z.infer<typeof DAODeploymentConfigSchema>;
@@ -102,13 +104,36 @@ export interface DAODeploymentResult {
   deploymentEndTime?: Date;
 }
 
-// Hardware Wallet Types
-export type HardwareWalletType = 'ledger' | 'trezor';
+// Transaction Preparation Types
+export interface PreparedTransaction {
+  transactionType: 'contract_deployment' | 'contract_call';
+  unsignedTransaction: {
+    to: string | null;
+    value: string;
+    data: string;
+    gas?: string;
+    gasPrice?: string;
+    maxFeePerGas?: string;
+    maxPriorityFeePerGas?: string;
+    nonce?: number;
+    chainId?: number;
+  };
+  metadata: {
+    networkName: string;
+    networkChainId: number;
+    contractName?: string;
+    functionName?: string;
+    constructorArgs?: any[];
+    description: string;
+    estimatedGasUsage: string;
+    estimatedCostEth: string;
+  };
+}
 
-export interface HardwareWalletConfig {
-  type: HardwareWalletType;
-  derivationPath?: string;
-  accountIndex?: number;
+export interface TransactionBroadcastInput {
+  signedTransaction: string;
+  networkName: string;
+  expectedTransactionHash?: string;
 }
 
 // Contract ABI Types
@@ -145,9 +170,9 @@ export class DeploymentError extends DAODeployerError {
   }
 }
 
-export class HardwareWalletError extends DAODeployerError {
+export class TransactionError extends DAODeployerError {
   constructor(message: string, context?: Record<string, any>) {
-    super(message, 'HARDWARE_WALLET_ERROR', context);
+    super(message, 'TRANSACTION_ERROR', context);
   }
 }
 

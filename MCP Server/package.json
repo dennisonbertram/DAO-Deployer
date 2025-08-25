@@ -1,7 +1,7 @@
 {
   "name": "dao-deployer-mcp-server",
   "version": "1.0.0",
-  "description": "Model Context Protocol server for deploying DAO factories and DAOs to any network with hardware wallet support",
+  "description": "Model Context Protocol server for deploying DAO factories and DAOs to any network with transaction preparation support",
   "main": "build/index.js",
   "type": "module",
   "scripts": {
@@ -23,14 +23,11 @@
     "ethereum",
     "blockchain",
     "deployment",
-    "hardware-wallet"
+    "transaction-preparation"
   ],
   "author": "DAO Deployer MCP",
   "license": "MIT",
   "dependencies": {
-    "@ledgerhq/hw-app-eth": "^6.45.15",
-    "@ledgerhq/hw-transport-node-hid": "^6.29.10",
-    "@ledgerhq/hw-transport-node-hid-singleton": "^6.31.10",
     "@modelcontextprotocol/sdk": "^1.0.0",
     "dotenv": "^16.4.0",
     "viem": "^2.21.0",

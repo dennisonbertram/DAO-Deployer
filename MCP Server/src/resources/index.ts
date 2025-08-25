@@ -190,24 +190,24 @@ async function getFactoryDeploymentTemplate(): Promise<string> {
     networkName: "sepolia",
     factoryVersion: "v2",
     verifyContract: true,
-    useHardwareWallet: true,
-    hardwareWalletType: "ledger",
     gasEstimateMultiplier: 1.2,
-    description: "Template for deploying DAO factory contracts",
+    fromAddress: "0x1234567890123456789012345678901234567890",
+    description: "Template for preparing DAO factory deployment transactions (use with MCP Ledger server for signing)",
+    workflow: "Use prepare-factory-deployment tool, then sign with MCP Ledger server",
     examples: {
       testnet: {
         networkName: "sepolia",
         factoryVersion: "v2",
         verifyContract: true,
-        useHardwareWallet: false
+        fromAddress: "0x1234567890123456789012345678901234567890",
+        gasEstimateMultiplier: 1.2
       },
       mainnet: {
         networkName: "ethereum",
         factoryVersion: "v2", 
         verifyContract: true,
-        useHardwareWallet: true,
-        hardwareWalletType: "ledger",
-        gasEstimateMultiplier: 1.2
+        fromAddress: "0x1234567890123456789012345678901234567890",
+        gasEstimateMultiplier: 1.5
       }
     }
   };
@@ -237,17 +237,18 @@ async function getDAODeploymentTemplate(): Promise<string> {
       proposers: ["0x1234567890123456789012345678901234567890"],
       executors: ["0x1234567890123456789012345678901234567890"]
     },
-    useHardwareWallet: true,
-    hardwareWalletType: "ledger",
     verifyContracts: true,
-    description: "Template for deploying complete DAO systems",
+    fromAddress: "0x1234567890123456789012345678901234567890",
+    description: "Template for preparing DAO deployment transactions (requires sequential deployment with MCP Ledger server)",
+    workflow: "Use prepare-dao-deployment tool to get 3 transactions, sign each with MCP Ledger server in order",
     notes: {
       initialSupply: "Token supply in wei (18 decimals)",
       votingDelay: "Blocks to wait before voting starts", 
       votingPeriod: "Blocks for voting duration",
       proposalThreshold: "Min tokens needed to create proposal (in wei)",
       quorumPercentage: "Minimum % of tokens needed for quorum",
-      minDelay: "Timelock delay in seconds (86400 = 1 day)"
+      minDelay: "Timelock delay in seconds (86400 = 1 day)",
+      sequentialDeployment: "CRITICAL: Deploy token first, then timelock, then governor (with updated addresses)"
     }
   };
   
@@ -260,42 +261,65 @@ async function getDAODeploymentTemplate(): Promise<string> {
 async function getQuickStartGuide(): Promise<string> {
   return `# 🚀 DAO Deployer Quick Start Guide
 
+## Two-Server Architecture
+
+This system uses **two MCP servers** working together:
+
+1. **DAO Deployer MCP Server** - Prepares deployment transactions
+2. **MCP Ledger Server** - Signs transactions securely with hardware wallet
+
 ## Prerequisites
 
-1. **Hardware Wallet** (Recommended)
-   - Ledger or Trezor device
-   - Connected and unlocked
-   - Ethereum app installed
+1. **Both MCP Servers Running**
+   - DAO Deployer MCP server (this one)
+   - MCP Ledger server for secure signing
+   - Both configured in your Claude Code
 
-2. **Environment Setup**
-   - Node.js 18+
-   - Foundry installed
+2. **Hardware Wallet Setup** (via MCP Ledger server)
+   - Ledger device connected and unlocked
+   - Ethereum app installed and open
+   - Device configured in MCP Ledger server
+
+3. **Environment Setup**
    - API keys for block explorers (optional, for verification)
+   - Network RPC access (Alchemy, Infura, etc.)
 
-## Step 1: Deploy Factory Contract
+## Step 1: Prepare Factory Deployment
 
-First, deploy a factory contract to create DAOs:
+Use this server to prepare the factory deployment transaction:
 
-\`\`\`bash
-# Use the deploy-factory tool
+\`\`\`json
 {
   "networkName": "sepolia",
-  "factoryVersion": "v2", 
+  "factoryVersion": "v2",
   "verifyContract": true,
-  "useHardwareWallet": true,
-  "hardwareWalletType": "ledger"
+  "fromAddress": "0x...",
+  "gasEstimateMultiplier": 1.2
 }
 \`\`\`
 
-## Step 2: Deploy Your DAO
+**Tool**: \`prepare-factory-deployment\`
 
-Once you have a factory address, deploy your DAO:
+## Step 2: Sign & Broadcast with MCP Ledger Server
 
-\`\`\`bash
-# Use the deploy-dao tool
+Take the prepared transaction to your MCP Ledger server:
+
+\`\`\`json
+{
+  "tool": "sign_and_broadcast_transaction",
+  "transaction": "...", 
+  "network": "sepolia"
+}
+\`\`\`
+
+## Step 3: Prepare DAO Deployment Plan
+
+Once factory is deployed, prepare the DAO deployment:
+
+\`\`\`json
 {
   "networkName": "sepolia",
-  "factoryAddress": "0x...", # From step 1
+  "factoryAddress": "0x...",
   "daoName": "My First DAO",
   "tokenName": "My DAO Token",
   "tokenSymbol": "MDT",
@@ -314,18 +338,38 @@ Once you have a factory address, deploy your DAO:
 }
 \`\`\`
 
-## Step 3: Verify Deployment
+**Tool**: \`prepare-dao-deployment\`
+
+## Step 4: Sequential Deployment with MCP Ledger Server
+
+The DAO deployment returns 3 transactions to sign in order:
+
+1. **Token Contract** - Sign and broadcast first
+2. **Timelock Contract** - Sign and broadcast second  
+3. **Governor Contract** - Update with real addresses, then sign and broadcast
+
+⚠️ **Critical**: Governor transaction must be updated with actual token and timelock addresses!
+
+## Step 5: Verify Deployment
 
 Check your deployment status:
 
-\`\`\`bash
-# Use get-deployment-info tool
+\`\`\`json
 {
-  "contractAddress": "0x...", # Governor address
+  "contractAddress": "0x...",
   "networkName": "sepolia",
   "includeTransactionDetails": true
 }
 \`\`\`
+
+**Tool**: \`get-deployment-info\`
+
+## Architecture Benefits
+
+✅ **Security**: Hardware wallet keys never leave the device
+✅ **Separation**: DAO logic separate from signing logic
+✅ **Flexibility**: Use any compatible signing method
+✅ **Maintainability**: Single codebase for each concern
 
 ## Next Steps
 
@@ -336,9 +380,10 @@ Check your deployment status:
 
 ## Need Help?
 
-- Check network requirements: \`dao-deployer://docs/network-requirements\`
-- Hardware wallet setup: \`dao-deployer://docs/hardware-wallets\`
-- List available networks: Use the \`list-networks\` tool
+- List available networks: Use \`list-networks\` tool
+- Check transaction status: Use \`wait-for-confirmation\` tool
+- Network requirements: \`dao-deployer://docs/network-requirements\`
+- Two-server setup: \`dao-deployer://docs/hardware-wallets\`
 `;
 }
 
@@ -346,100 +391,173 @@ Check your deployment status:
  * Get hardware wallet guide
  */
 async function getHardwareWalletGuide(): Promise<string> {
-  return `# 🔐 Hardware Wallet Integration Guide
+  return `# 🔐 Two-Server Hardware Wallet Integration Guide
 
-## Supported Hardware Wallets
+## Architecture Overview
 
-### Ledger
-- **Models**: Nano S, Nano S Plus, Nano X
-- **Requirements**: Ethereum app installed and updated
-- **Connection**: USB connection required
+This DAO Deployer uses a **two-server architecture** for maximum security:
 
-### Trezor  
-- **Models**: Model One, Model T
-- **Requirements**: Latest firmware
-- **Connection**: USB connection required
+1. **DAO Deployer MCP Server** (this one)
+   - Prepares deployment transactions
+   - Validates parameters and estimates gas
+   - Provides deployment instructions
+
+2. **MCP Ledger Server** (separate repository)
+   - Handles hardware wallet connections
+   - Signs transactions securely
+   - Broadcasts to blockchain networks
+
+## Why Two Servers?
+
+✅ **Security**: Hardware wallet logic is isolated
+✅ **Maintainability**: Single responsibility per server
+✅ **Flexibility**: Use any compatible signing method
+✅ **Upgradability**: Update servers independently
 
 ## Setup Process
 
-### 1. Connect Hardware Wallet
+### 1. Install Both MCP Servers
+
+**DAO Deployer MCP Server** (you have this one)
 \`\`\`bash
-# Connect your device and unlock it
-# Open the Ethereum app on your device
+# Already running - prepares transactions
 \`\`\`
 
-### 2. Configure Foundry
+**MCP Ledger Server** (install separately)
 \`\`\`bash
-# Foundry will automatically detect your hardware wallet
-# Use --ledger or --trezor flags in deployment commands
+git clone https://github.com/crazyrabbitLTC/mcp-ledger-server
+cd mcp-ledger-server
+npm install
 \`\`\`
 
-### 3. Deployment Flow
-1. Run deployment command with hardware wallet flag
-2. Foundry prepares the transaction
-3. Hardware wallet displays transaction details
-4. Confirm transaction on device
-5. Transaction is broadcast to network
+### 2. Configure Claude Code
 
-## Security Best Practices
+Add both servers to your Claude Code configuration:
 
-### ✅ Do
-- Always verify transaction details on device screen
-- Keep firmware updated
-- Use official apps only
-- Double-check addresses and amounts
+\`\`\`json
+{
+  "mcpServers": {
+    "dao-deployer": {
+      "command": "node",
+      "args": ["/path/to/dao-deployer/build/index.js"]
+    },
+    "ledger": {
+      "command": "node", 
+      "args": ["/path/to/mcp-ledger-server/build/index.js"]
+    }
+  }
+}
+\`\`\`
 
-### ❌ Don't
-- Never share your 24-word recovery phrase
-- Don't use unofficial software
-- Don't confirm transactions you don't understand
-- Don't leave device unattended while unlocked
+### 3. Hardware Wallet Setup
+
+**Connect Hardware Wallet** (via MCP Ledger Server)
+- Connect Ledger device via USB
+- Unlock device with PIN
+- Open Ethereum app on device
+- Verify connection using MCP Ledger server tools
+
+## Workflow
+
+### 1. Prepare Transaction (DAO Deployer)
+\`\`\`json
+{
+  "tool": "prepare-factory-deployment",
+  "networkName": "sepolia",
+  "factoryVersion": "v2"
+}
+\`\`\`
+
+### 2. Sign Transaction (MCP Ledger Server)
+\`\`\`json
+{
+  "tool": "sign_transaction",
+  "unsigned_transaction": "...",
+  "network": "sepolia"
+}
+\`\`\`
+
+### 3. Broadcast (MCP Ledger Server)
+\`\`\`json
+{
+  "tool": "broadcast_transaction", 
+  "signed_transaction": "...",
+  "network": "sepolia"
+}
+\`\`\`
+
+### 4. Monitor (DAO Deployer)
+\`\`\`json
+{
+  "tool": "wait-for-confirmation",
+  "transactionHash": "0x...",
+  "networkName": "sepolia"
+}
+\`\`\`
+
+## Security Features
+
+### Hardware Wallet Security (MCP Ledger Server)
+- Private keys never leave hardware device
+- Transaction details displayed on device screen
+- Physical confirmation required for every transaction
+- Support for multiple hardware wallet types
+
+### Transaction Verification
+- All transaction parameters visible before signing
+- Gas estimates and costs calculated
+- Network validation prevents wrong-chain deployments
+- Address validation prevents typos
+
+## Supported Hardware Wallets
+
+The MCP Ledger Server supports:
+- **Ledger**: Nano S, Nano S Plus, Nano X
+- **Future**: Trezor support planned
+
+## Benefits of This Architecture
+
+### Compared to Direct Integration:
+✅ **Better Security**: Isolated hardware wallet handling
+✅ **Easier Maintenance**: Update servers independently  
+✅ **More Flexible**: Swap signing methods easily
+✅ **Cleaner Code**: Single responsibility principle
+✅ **Better Testing**: Mock signing for development
+
+### Compared to CLI Tools:
+✅ **Better UX**: Integrated with Claude Code
+✅ **More Guidance**: Step-by-step instructions
+✅ **Error Handling**: Better error messages and recovery
+✅ **State Management**: Track deployment progress
 
 ## Troubleshooting
 
-### Connection Issues
-- Ensure device is unlocked
-- Try different USB cable/port
-- Close other wallet applications
-- Restart Foundry/terminal
-
-### Transaction Failures
-- Check device battery level
+### Setup Issues
+- Ensure both MCP servers are running
+- Check Claude Code configuration
 - Verify network connectivity
-- Ensure sufficient balance for gas fees
-- Try reducing gas limit if transaction fails
+- Test each server independently
 
-### Common Errors
+### Hardware Wallet Issues
+- Use MCP Ledger server diagnostic tools
+- Verify device connection and app status
+- Check for firmware updates
+- Refer to MCP Ledger server documentation
 
-**"Hardware wallet not detected"**
-- Solution: Reconnect device, ensure app is open
+### Transaction Issues
+- Verify transaction data with MCP Ledger server
+- Check gas estimates and balances
+- Use smaller test transactions first
+- Monitor transaction status with both servers
 
-**"Transaction rejected by user"**  
-- Solution: Approve transaction on hardware wallet
+## Getting Help
 
-**"Insufficient funds"**
-- Solution: Add more ETH for gas fees
+- **DAO Deployer Issues**: This server's documentation
+- **Hardware Wallet Issues**: MCP Ledger server repository
+- **Integration Issues**: Check both server configurations
+- **Network Issues**: Use diagnostic tools from both servers
 
-## Network-Specific Considerations
-
-### Mainnet Deployment
-- Double-check all parameters
-- Start with small test transactions
-- Use higher gas multipliers for reliability
-- Consider deployment during low-traffic periods
-
-### Testnet Deployment
-- Use testnet ETH from faucets
-- Lower gas settings acceptable
-- Good for testing flows before mainnet
-
-## Support
-
-If you encounter issues:
-1. Check Foundry documentation
-2. Verify hardware wallet compatibility
-3. Test with simple transactions first
-4. Contact hardware wallet support if device issues persist
+This two-server approach provides enterprise-grade security while maintaining ease of use!
 `;
 }
 
