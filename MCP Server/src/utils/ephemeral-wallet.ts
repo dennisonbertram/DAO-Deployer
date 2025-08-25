@@ -87,7 +87,6 @@ export async function generateEphemeralWallet(networkName: string): Promise<Ephe
     };
     
   } catch (error: any) {
-    console.error('❌ Failed to generate ephemeral wallet:', error.message);
     throw error;
   }
 }
@@ -187,7 +186,6 @@ async function loadPrivateKey(walletAddress: string, networkName: string): Promi
     return data.privateKey;
     
   } catch (error: any) {
-    console.error(`❌ Failed to load private key for ${walletAddress}:`, error.message);
     throw error;
   }
 }
@@ -281,8 +279,6 @@ export async function sweepEphemeralWallet(
       transport: http(networkConfig.rpcUrl)
     });
     
-    console.log(`💸 Sweeping ${formatEther(amountToSend)} ETH from ${account.address} to ${recipientAddress}`);
-    console.log(`⛽ Estimated gas: ${gasEstimate.toLocaleString()} units at ${formatEther(gasPrice)} ETH/gas`);
     
     // Send transaction using VIEM wallet client
     const hash = await walletClient.sendTransaction({
@@ -292,13 +288,11 @@ export async function sweepEphemeralWallet(
       gasPrice
     });
     
-    console.log(`📄 Transaction sent: ${hash}`);
     
     // Wait for transaction confirmation
     const receipt = await publicClient.waitForTransactionReceipt({ hash });
     
     // Transaction confirmed
-    console.log(`⛽ Gas used: ${receipt.gasUsed.toLocaleString()}`);
     
     // Check if funds were successfully transferred
     const newBalance = await publicClient.getBalance({ address: account.address });
@@ -321,7 +315,6 @@ export async function sweepEphemeralWallet(
     };
     
   } catch (error: any) {
-    console.error(`❌ Failed to sweep wallet ${walletAddress}:`, error.message);
     return {
       success: false,
       amountSwept: '0',
@@ -345,16 +338,13 @@ async function deleteWalletKey(walletAddress: string, networkName: string): Prom
     );
     
     if (!wallet) {
-      console.warn(`⚠️ No wallet file found for ${walletAddress} on ${networkName}`);
       return false;
     }
     
     await fs.unlink(wallet.keyFile);
-    console.log(`🗑️ Deleted wallet key file: ${wallet.keyFile}`);
     return true;
     
   } catch (error: any) {
-    console.error(`❌ Failed to delete wallet key for ${walletAddress}:`, error.message);
     return false;
   }
 }

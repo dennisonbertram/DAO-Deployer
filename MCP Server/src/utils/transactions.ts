@@ -65,12 +65,12 @@ export async function prepareContractDeployment(params: {
     contractName = 'Unknown Contract'
   } = params;
 
-  console.log(`\n🔧 Preparing contract deployment for ${contractName} on ${networkConfig.name}`);
+  // Preparing contract deployment
 
   const publicClient = createTransactionClient(networkConfig);
 
   // Estimate gas for deployment
-  console.log('⛽ Estimating gas for deployment...');
+  // Estimating gas for deployment
   const gasEstimate = await publicClient.estimateGas({
     account: fromAddress,
     data: contractBytecode,
@@ -78,15 +78,13 @@ export async function prepareContractDeployment(params: {
   });
 
   const adjustedGas = BigInt(Math.ceil(Number(gasEstimate) * gasEstimateMultiplier));
-  console.log(`⛽ Gas estimate: ${gasEstimate.toLocaleString()} (adjusted: ${adjustedGas.toLocaleString()})`);
+  // Gas estimate calculated
 
   // Get current gas price
   const gasPrice = await publicClient.getGasPrice();
   const estimatedCostWei = adjustedGas * gasPrice;
   const estimatedCostEth = (Number(estimatedCostWei) / 1e18).toFixed(6);
 
-  console.log(`💰 Gas price: ${(Number(gasPrice) / 1e9).toFixed(2)} gwei`);
-  console.log(`💸 Estimated cost: ${estimatedCostEth} ETH`);
 
   // Get chain ID
   const chainId = await publicClient.getChainId();
@@ -150,7 +148,7 @@ export async function prepareContractCall(params: {
     fromAddress
   } = params;
 
-  console.log(`\n🔧 Preparing contract call to ${functionName} on ${networkConfig.name}`);
+  // Preparing contract call
 
   const publicClient = createTransactionClient(networkConfig);
 
@@ -162,7 +160,7 @@ export async function prepareContractCall(params: {
   });
 
   // Estimate gas for the call
-  console.log('⛽ Estimating gas for contract call...');
+  // Estimating gas for contract call
   const gasEstimate = await publicClient.estimateGas({
     account: fromAddress,
     to: contractAddress,
@@ -171,15 +169,13 @@ export async function prepareContractCall(params: {
   });
 
   const adjustedGas = BigInt(Math.ceil(Number(gasEstimate) * gasEstimateMultiplier));
-  console.log(`⛽ Gas estimate: ${gasEstimate.toLocaleString()} (adjusted: ${adjustedGas.toLocaleString()})`);
+  // Gas estimate calculated
 
   // Get current gas price
   const gasPrice = await publicClient.getGasPrice();
   const estimatedCostWei = adjustedGas * gasPrice;
   const estimatedCostEth = (Number(estimatedCostWei) / 1e18).toFixed(6);
 
-  console.log(`💰 Gas price: ${(Number(gasPrice) / 1e9).toFixed(2)} gwei`);
-  console.log(`💸 Estimated cost: ${estimatedCostEth} ETH`);
 
   // Get chain ID
   const chainId = await publicClient.getChainId();
@@ -223,8 +219,7 @@ export async function prepareContractCall(params: {
 export async function broadcastSignedTransaction(params: SignedTransactionInput): Promise<TransactionBroadcastResult> {
   const { signedTransaction, networkName, expectedTransactionHash } = params;
 
-  console.log(`\n📡 Broadcasting signed transaction to ${networkName}`);
-  console.log(`📝 Transaction: ${signedTransaction.slice(0, 20)}...`);
+  // Broadcasting signed transaction
 
   // This is a placeholder - in the real implementation, we'd need the network config
   // For now, we'll create a simple error to indicate this needs to be implemented
@@ -252,7 +247,6 @@ export async function waitForTransactionConfirmation(params: {
   
   const { transactionHash, networkConfig, confirmations = 1 } = params;
 
-  console.log(`\n⏳ Waiting for transaction confirmation: ${transactionHash}`);
   
   const publicClient = createTransactionClient(networkConfig);
 
@@ -276,7 +270,6 @@ export async function waitForTransactionConfirmation(params: {
     };
 
   } catch (error: any) {
-    console.error(`❌ Transaction failed or timed out: ${error.message}`);
     throw new Error(`Transaction confirmation failed: ${error.message}`);
   }
 }

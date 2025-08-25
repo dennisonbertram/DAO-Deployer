@@ -36,7 +36,6 @@ export async function deployContractWithForge(options: ForgeDeploymentOptions): 
   try {
     const args = buildForgeCreateArgs(options);
     
-    console.log('Executing forge create command:', args.join(' '));
     
     const { stdout, stderr } = await execFileAsync('forge', args, {
       cwd: path.resolve('../contracts'), // Go to contracts directory
@@ -60,14 +59,12 @@ export async function deployContractWithForge(options: ForgeDeploymentOptions): 
             etherscanApiKey: options.etherscanApiKey
           });
         } catch (verifyError) {
-          console.warn('Contract deployment succeeded but verification failed:', verifyError);
         }
       }
     }
 
     return result;
   } catch (error: any) {
-    console.error('Forge deployment error:', error);
     
     if (error.code === 'ENOENT') {
       throw new TransactionError('Forge not found. Please install Foundry: https://getfoundry.sh/');
@@ -242,10 +239,8 @@ export async function verifyContractWithForge(options: ForgeVerificationOptions)
       maxBuffer: 1024 * 1024
     });
     
-    console.log('Contract verification result:', stdout);
     
     if (stderr && !stderr.includes('warning')) {
-      console.error('Verification stderr:', stderr);
     }
     
     // Check for verification success
@@ -254,7 +249,6 @@ export async function verifyContractWithForge(options: ForgeVerificationOptions)
     }
     
   } catch (error: any) {
-    console.error('Contract verification failed:', error);
     throw new Error(`Contract verification failed: ${error.message}`);
   }
 }
@@ -279,7 +273,6 @@ async function encodeConstructorArgs(args: string[]): Promise<string> {
     
     return stdout.trim();
   } catch (error) {
-    console.warn('Failed to encode constructor args with cast, using raw args');
     return args.join(' ');
   }
 }
@@ -321,7 +314,6 @@ export async function runForgeScript(
     
     return parseForgeOutput(stdout, stderr);
   } catch (error: any) {
-    console.error('Forge script execution error:', error);
     return {
       success: false,
       error: error.message,

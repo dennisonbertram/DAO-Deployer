@@ -286,6 +286,24 @@ export const SUPPORTED_NETWORKS: Record<string, NetworkConfig> = {
     testnet: false
   },
 
+  // Local Test Network (Anvil)
+  local: {
+    chainId: 31337,
+    name: 'Anvil Local Testnet',
+    rpcUrl: 'http://127.0.0.1:8545',
+    fallbackRpcUrls: [],
+    explorerUrl: undefined,
+    explorerApiUrl: undefined,
+    explorerApiKey: undefined,
+    gasMultiplier: 1.1,
+    nativeCurrency: {
+      name: 'Test Ether',
+      symbol: 'ETH',
+      decimals: 18
+    },
+    testnet: true
+  },
+
   'bsc-testnet': {
     chainId: 97,
     name: 'BNB Smart Chain Testnet',
@@ -360,8 +378,8 @@ export async function resolveNetworkConfig(config: NetworkConfig): Promise<Netwo
       
       if (value) {
         result = result.replace(placeholder, value);
-      } else {
-        console.warn(`API key ${varName} not found in config or environment, will use fallback if available`);
+      } else if (config.name !== 'Anvil Local Testnet') {
+        // Don't warn for local test network
       }
     }
     
@@ -373,7 +391,6 @@ export async function resolveNetworkConfig(config: NetworkConfig): Promise<Netwo
   
   // If the resolved URL still contains placeholders, use fallback
   if (resolvedRpcUrl.includes('${') && config.fallbackRpcUrls && config.fallbackRpcUrls.length > 0) {
-    console.warn(`Using fallback RPC for ${config.name}: ${config.fallbackRpcUrls[0]}`);
     resolvedRpcUrl = config.fallbackRpcUrls[0];
   }
 

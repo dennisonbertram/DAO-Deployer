@@ -24,8 +24,6 @@ export async function broadcastSignedTransaction(input: z.infer<typeof Broadcast
     // Get network configuration
     const networkConfig = await resolveNetworkConfig(getNetworkConfig(params.networkName));
     
-    console.log(`\n📡 Broadcasting transaction to ${networkConfig.name}`);
-    console.log(`📝 Transaction: ${params.signedTransaction.slice(0, 20)}...`);
     
     // This is a placeholder implementation
     // In a real implementation, we would actually broadcast the transaction
@@ -58,7 +56,6 @@ Example MCP Ledger server usage:
 `);
     
   } catch (error: any) {
-    console.error('❌ Transaction broadcast failed:', error.message);
     throw error;
   }
 }
@@ -82,10 +79,6 @@ export async function waitForConfirmation(input: z.infer<typeof WaitForConfirmat
     // Get network configuration
     const networkConfig = await resolveNetworkConfig(getNetworkConfig(params.networkName));
     
-    console.log(`\n⏳ Waiting for transaction confirmation on ${networkConfig.name}`);
-    console.log(`🔗 Transaction Hash: ${params.transactionHash}`);
-    console.log(`✅ Required Confirmations: ${params.confirmations}`);
-    console.log(`⏰ Timeout: ${params.timeoutMinutes} minutes`);
     
     // Wait for the transaction confirmation
     const result = await waitForTransactionConfirmation({
@@ -94,13 +87,8 @@ export async function waitForConfirmation(input: z.infer<typeof WaitForConfirmat
       confirmations: params.confirmations
     });
     
-    console.log(`\n🎉 Transaction confirmed!`);
-    console.log(`📦 Block Number: ${result.blockNumber?.toString()}`);
-    console.log(`⛽ Gas Used: ${result.gasUsed?.toLocaleString()}`);
-    console.log(`💰 Effective Gas Price: ${result.effectiveGasPrice ? (Number(result.effectiveGasPrice) / 1e9).toFixed(2) + ' gwei' : 'Unknown'}`);
     
     if (result.contractAddress) {
-      console.log(`📍 Contract Address: ${result.contractAddress}`);
     }
     
     return {
@@ -117,7 +105,6 @@ export async function waitForConfirmation(input: z.infer<typeof WaitForConfirmat
     };
     
   } catch (error: any) {
-    console.error('❌ Transaction confirmation failed:', error.message);
     throw new TransactionError(`Failed to confirm transaction: ${error.message}`);
   }
 }
@@ -141,8 +128,6 @@ export async function checkTransactionStatus(input: z.infer<typeof CheckTransact
     // Get network configuration
     const networkConfig = await resolveNetworkConfig(getNetworkConfig(params.networkName));
     
-    console.log(`\n🔍 Checking transaction status on ${networkConfig.name}`);
-    console.log(`🔗 Transaction Hash: ${params.transactionHash}`);
     
     // This would check the transaction status
     // For now, we'll provide guidance on using external tools
@@ -163,7 +148,6 @@ export async function checkTransactionStatus(input: z.infer<typeof CheckTransact
     };
     
   } catch (error: any) {
-    console.error('❌ Transaction status check failed:', error.message);
     throw error;
   }
 }

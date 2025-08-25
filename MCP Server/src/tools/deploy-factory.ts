@@ -22,12 +22,12 @@ export async function prepareFactoryDeployment(input: z.infer<typeof DeployFacto
     // Determine factory contract to deploy
     const factoryContractName = config.factoryVersion === 'v2' ? 'SimpleDAOFactoryV2' : 'SimpleDAOFactory';
     
-    console.log(`\n🔧 Preparing ${factoryContractName} deployment for ${networkConfig.name} (Chain ID: ${networkConfig.chainId})`);
-    console.log(`📡 RPC URL: ${networkConfig.rpcUrl.replace(/\/v2\/.*/, '/v2/***')}`); // Hide API keys
-    console.log(`✅ Verification: ${config.verifyContract ? 'Enabled' : 'Disabled'}`);
+    // Preparing factory deployment
+    // RPC URL configured
+    // Contract verification configured
     
     // Load contract bytecode
-    console.log(`📋 Loading ${factoryContractName} contract...`);
+    // Loading factory contract
     const contractABI = await loadContractABI(factoryContractName as ContractName);
     
     if (!contractABI.bytecode) {
@@ -44,28 +44,14 @@ export async function prepareFactoryDeployment(input: z.infer<typeof DeployFacto
       contractName: factoryContractName
     });
     
-    console.log(`\n✅ Factory deployment transaction prepared successfully!`);
-    console.log(`📋 Contract: ${factoryContractName}`);
-    console.log(`🌐 Network: ${networkConfig.name}`);
-    console.log(`⛽ Estimated Gas: ${preparedTransaction.metadata.estimatedGasUsage.toLocaleString()}`);
-    console.log(`💸 Estimated Cost: ${preparedTransaction.metadata.estimatedCostEth} ETH`);
     
     if (config.verifyContract && networkConfig.explorerApiUrl) {
-      console.log(`\n📋 Next Steps:`);
-      console.log(`1. Sign and broadcast this transaction using your MCP Ledger server`);
-      console.log(`2. Wait for transaction confirmation`);
-      console.log(`3. Use the verify-contract tool with the deployed address`);
     } else {
-      console.log(`\n📋 Next Steps:`);
-      console.log(`1. Sign and broadcast this transaction using your MCP Ledger server`);
-      console.log(`2. Save the factory address for DAO deployments`);
-      console.log(`3. Fund your deployment account for DAO creations`);
     }
     
     return preparedTransaction;
     
   } catch (error: any) {
-    console.error('❌ Factory deployment preparation failed:', error.message);
     throw error;
   }
 }

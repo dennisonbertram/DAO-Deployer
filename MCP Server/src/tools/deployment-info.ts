@@ -53,8 +53,6 @@ export async function getDeploymentInfo(input: z.infer<typeof GetDeploymentInfoI
     // Get network configuration
     const networkConfig = await resolveNetworkConfig(getNetworkConfig(config.networkName));
     
-    console.log(`\n📋 Getting deployment info for contract on ${networkConfig.name}`);
-    console.log(`📍 Address: ${config.contractAddress}`);
     
     // Create public client for the network
     const publicClient = createPublicClient({
@@ -103,7 +101,6 @@ export async function getDeploymentInfo(input: z.infer<typeof GetDeploymentInfoI
           result.deploymentTransaction = deploymentTx;
         }
       } catch (error) {
-        console.warn('Could not fetch deployment transaction details:', error);
       }
     }
     
@@ -112,20 +109,15 @@ export async function getDeploymentInfo(input: z.infer<typeof GetDeploymentInfoI
       try {
         result.abi = await tryGetContractABI(config.contractAddress, config.networkName);
       } catch (error) {
-        console.warn('Could not load ABI:', error);
       }
     }
     
-    console.log(`✅ Contract info retrieved successfully`);
-    console.log(`📦 Code size: ${codeSize.toLocaleString()} bytes`);
     if (result.deploymentTransaction) {
-      console.log(`🚀 Deployed at block: ${result.deploymentTransaction.blockNumber}`);
     }
     
     return result;
     
   } catch (error: any) {
-    console.error('❌ Failed to get deployment info:', error.message);
     throw error;
   }
 }
@@ -155,14 +147,12 @@ async function findDeploymentTransaction(
     // 2. Event logs for factory-deployed contracts  
     // 3. Transaction indexing services
     
-    console.log('⏳ Searching for deployment transaction (simplified search)...');
     
     // Return undefined for now - this would need proper implementation
     // based on the specific indexing capabilities available
     return undefined;
     
   } catch (error) {
-    console.warn('Could not find deployment transaction:', error);
     return undefined;
   }
 }
@@ -188,7 +178,6 @@ async function tryGetContractABI(contractAddress: string, networkName: string): 
     return undefined;
     
   } catch (error) {
-    console.warn('Could not load contract ABI:', error);
     return undefined;
   }
 }
@@ -201,14 +190,12 @@ export async function getBatchDeploymentInfo(
   networkName: string
 ): Promise<ContractDeploymentInfo[]> {
   
-  console.log(`\n📋 Getting deployment info for ${contracts.length} contracts on ${networkName}...`);
   
   const results: ContractDeploymentInfo[] = [];
   
   for (let i = 0; i < contracts.length; i++) {
     const contract = contracts[i];
     
-    console.log(`\n📄 Checking contract ${i + 1}/${contracts.length}: ${contract.name || 'Unknown'}`);
     
     try {
       const info = await getDeploymentInfo({
@@ -222,7 +209,6 @@ export async function getBatchDeploymentInfo(
       results.push(info);
       
     } catch (error: any) {
-      console.error(`❌ Failed to get info for ${contract.address}:`, error.message);
       
       results.push({
         contractAddress: contract.address,
@@ -242,7 +228,6 @@ export async function getBatchDeploymentInfo(
   }
   
   const validContracts = results.filter(r => !r.error).length;
-  console.log(`✅ Batch info retrieval completed: ${validContracts}/${contracts.length} contracts found`);
   
   return results;
 }

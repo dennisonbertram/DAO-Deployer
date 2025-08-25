@@ -736,7 +736,6 @@ export async function startServer() {
 // Start server if running directly
 if (import.meta.url === `file://${process.argv[1]}`) {
   startServer().catch((error) => {
-    console.error('Failed to start server:', error);
     process.exit(1);
   });
 }

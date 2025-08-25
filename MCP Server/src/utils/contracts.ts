@@ -54,7 +54,6 @@ export async function loadAllContractABIs(): Promise<Record<string, ContractABI>
     try {
       abis[contractName] = await loadContractABI(contractName);
     } catch (error) {
-      console.warn(`Failed to load ABI for ${contractName}:`, error);
     }
   }
   

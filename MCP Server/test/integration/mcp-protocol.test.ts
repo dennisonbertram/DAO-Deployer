@@ -252,6 +252,51 @@ describe('MCP Protocol Integration Tests', () => {
         expect(error.message).toBeTruthy();
       }
     });
+
+    it('should prepare factory deployment transaction', async () => {
+      const response = await client.callTool('prepare-factory-deployment', {
+        networkName: 'sepolia',
+        factoryVersion: 'v2',
+        verifyContract: true,
+      });
+
+      expect(response.result).toBeDefined();
+      const content = extractTextContent(response);
+      expect(content).toContain('Transaction Summary');
+      expect(content).toContain('contract_deployment');
+      expect(content).toContain('sepolia');
+      expect(content).toContain('Factory');
+    });
+
+    it('should prepare DAO deployment plan', async () => {
+      const response = await client.callTool('prepare-dao-deployment', {
+        networkName: 'sepolia',
+        factoryAddress: '0x1234567890123456789012345678901234567890',
+        daoName: 'Test DAO',
+        tokenName: 'Test Token',
+        tokenSymbol: 'TEST',
+        initialSupply: '1000000',
+        governorSettings: {
+          votingDelay: 1,
+          votingPeriod: 100,
+          proposalThreshold: '1000',
+          quorumPercentage: 10,
+        },
+        timelockSettings: {
+          minDelay: 86400,
+          proposers: ['0x1234567890123456789012345678901234567890'],
+          executors: ['0x1234567890123456789012345678901234567890'],
+        },
+      });
+
+      expect(response.result).toBeDefined();
+      const content = extractTextContent(response);
+      expect(content).toContain('DAO Deployment Plan');
+      expect(content).toContain('Test DAO');
+      expect(content).toContain('Step 1');
+      expect(content).toContain('Step 2');
+      expect(content).toContain('Step 3');
+    });
   });
 
   describe('Resource Handling', () => {

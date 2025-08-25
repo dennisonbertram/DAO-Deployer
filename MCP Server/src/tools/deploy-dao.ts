@@ -42,28 +42,20 @@ export async function prepareDAODeploymentPlan(input: z.infer<typeof DeployDAOIn
     // Get network configuration
     const networkConfig = await resolveNetworkConfig(getNetworkConfig(config.networkName));
     
-    console.log(`\n🔧 Preparing DAO deployment plan for "${config.daoName}" on ${networkConfig.name}`);
-    console.log(`🏭 Factory Address: ${config.factoryAddress}`);
-    console.log(`🪙 Token: ${config.tokenName} (${config.tokenSymbol})`);
     
     const deploymentOrder = ['Token Contract', 'Timelock Contract', 'Governor Contract'];
-    console.log('\n📋 Deployment Order:');
     deploymentOrder.forEach((contract, index) => {
-      console.log(`${index + 1}. ${contract}`);
     });
     
     // Step 1: Prepare Token Contract Deployment
-    console.log('\n🪙 Preparing Token Contract...');
     const tokenContract = getRecommendedContractVersion('token', true);
     const tokenTransaction = await prepareTokenDeployment(config, networkConfig, tokenContract);
     
     // Step 2: Prepare Timelock Contract Deployment  
-    console.log('\n⏰ Preparing Timelock Contract...');
     const timelockContract = getRecommendedContractVersion('timelock', true);
     const timelockTransaction = await prepareTimelockDeployment(config, networkConfig, timelockContract);
     
     // Step 3: Prepare Governor Contract Deployment
-    console.log('\n🏛️ Preparing Governor Contract...');
     const governorContract = getRecommendedContractVersion('governor', true);
     const governorTransaction = await prepareGovernorDeployment(config, networkConfig, governorContract);
     
@@ -85,25 +77,11 @@ export async function prepareDAODeploymentPlan(input: z.infer<typeof DeployDAOIn
       }
     };
     
-    console.log(`\n✅ DAO deployment plan prepared successfully!`);
-    console.log(`🏛️ DAO: ${config.daoName}`);
-    console.log(`🌐 Network: ${networkConfig.name}`);
-    console.log(`💸 Total Estimated Cost: ${totalCostEth} ETH`);
-    console.log(`📊 Contracts to Deploy: ${deploymentOrder.length}`);
     
-    console.log(`\n📋 Next Steps:`);
-    console.log(`1. Sign and broadcast Step 1 (Token) transaction using your MCP Ledger server`);
-    console.log(`2. Wait for confirmation and note the contract address`);
-    console.log(`3. Update Step 3 (Governor) transaction with the token address`);
-    console.log(`4. Sign and broadcast Step 2 (Timelock) transaction`);
-    console.log(`5. Wait for confirmation and note the contract address`);
-    console.log(`6. Update Step 3 (Governor) transaction with the timelock address`);
-    console.log(`7. Sign and broadcast Step 3 (Governor) transaction`);
     
     return deploymentPlan;
     
   } catch (error: any) {
-    console.error('❌ DAO deployment plan preparation failed:', error.message);
     throw error;
   }
 }
@@ -118,7 +96,6 @@ async function prepareTokenDeployment(
 ): Promise<PreparedTransaction> {
   
   // Load contract bytecode
-  console.log(`📝 Loading ${contractName} contract...`);
   const contractABI = await loadContractABI(contractName as ContractName);
   
   if (!contractABI.bytecode) {
@@ -152,7 +129,6 @@ async function prepareTimelockDeployment(
 ): Promise<PreparedTransaction> {
   
   // Load contract bytecode
-  console.log(`📝 Loading ${contractName} contract...`);
   const contractABI = await loadContractABI(contractName as ContractName);
   
   if (!contractABI.bytecode) {
@@ -186,7 +162,6 @@ async function prepareGovernorDeployment(
 ): Promise<PreparedTransaction> {
   
   // Load contract bytecode
-  console.log(`📝 Loading ${contractName} contract...`);
   const contractABI = await loadContractABI(contractName as ContractName);
   
   if (!contractABI.bytecode) {

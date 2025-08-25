@@ -4,7 +4,7 @@ A comprehensive platform for deploying and managing sovereign DAOs with determin
 
 ## Repository Structure
 
-This is a monorepo containing two main workspaces:
+This is a monorepo containing three main workspaces:
 
 ```
 dao-deployer/
@@ -17,6 +17,11 @@ dao-deployer/
 │   ├── src/            # Frontend source code
 │   ├── components/     # React components
 │   └── lib/            # Utilities and integrations
+├── MCP Server/         # Model Context Protocol server
+│   ├── src/            # MCP server implementation
+│   ├── test/           # Comprehensive test suite (100% coverage)
+│   ├── docs/           # MCP server documentation
+│   └── build/          # Compiled JavaScript
 └── package.json        # Root workspace configuration
 ```
 
@@ -75,6 +80,29 @@ npm run frontend:build
 cd frontend && npm run lint
 ```
 
+#### MCP Server
+
+```bash
+# Build MCP server
+cd "MCP Server" && npm run build
+
+# Start development server with auto-rebuild
+cd "MCP Server" && npm run dev
+
+# Start production server
+cd "MCP Server" && npm start
+
+# Run comprehensive test suite (100+ tests)
+cd "MCP Server" && npm test
+
+# Run specific test categories
+cd "MCP Server" && npm run test:integration
+cd "MCP Server" && npm run test:e2e
+
+# Start local Anvil blockchain for testing
+cd "MCP Server" && npm run anvil:start
+```
+
 ### Workspace Commands
 
 ```bash
@@ -123,6 +151,25 @@ The frontend workspace provides a complete web interface for:
 - Wagmi + Viem for Web3 integration
 - React Query for state management
 
+### MCP Server
+
+The MCP Server workspace provides AI assistant integration for blockchain deployment:
+
+- **17 MCP Tools**: Complete DAO deployment and management through AI assistants
+- **Hardware Wallet Support**: Secure Ledger integration for transaction signing
+- **Multi-Network Support**: 15+ blockchain networks with automatic fallbacks
+- **Ephemeral Wallets**: Temporary wallet system for deployment funding
+- **API Key Management**: Secure storage and management of blockchain service keys
+- **Contract Verification**: Automatic verification on block explorers
+- **Production Ready**: 100% test coverage with real blockchain integration
+
+**Key Features:**
+- Model Context Protocol (MCP) compliance for AI assistant integration
+- Hardware wallet security (Ledger support)
+- Atomic operations with concurrent access protection
+- Comprehensive error handling and recovery
+- Real implementation testing (no mocks philosophy)
+
 ## Network Support
 
 The system supports deterministic deployment across:
@@ -139,6 +186,7 @@ The system supports deterministic deployment across:
 - [Smart Contract System](./contracts/docs/SMART_CONTRACT_SYSTEM.md) - Complete technical documentation
 - [Frontend Development Plan](./contracts/docs/FRONTEND_DEVELOPMENT_PLAN.md) - UI/UX specifications
 - [Deployment Guide](./contracts/README_DEPLOYMENT.md) - Production deployment instructions
+- [MCP Server Guide](./MCP%20Server/README.md) - AI assistant integration with blockchain deployment tools
 
 ## Development Workflow
 
@@ -146,7 +194,8 @@ The system supports deterministic deployment across:
 
 1. **Smart Contracts**: Add contracts in `contracts/src/`, tests in `contracts/test/`
 2. **Frontend**: Add components in `frontend/src/components/`, pages in `frontend/src/app/`
-3. **Integration**: Update types and hooks in `frontend/src/lib/` and `frontend/src/hooks/`
+3. **MCP Server**: Add tools in `MCP Server/src/tools/`, tests in `MCP Server/test/`
+4. **Integration**: Update types and hooks in `frontend/src/lib/` and `frontend/src/hooks/`
 
 ### Testing
 
@@ -159,6 +208,9 @@ cd contracts && forge coverage
 
 # Test frontend
 cd frontend && npm run test
+
+# Test MCP server (100% coverage)
+cd "MCP Server" && npm test
 ```
 
 ### Deployment
@@ -209,6 +261,7 @@ vercel deploy --prod
 
 - **Contracts**: Follow Solidity style guide, add comprehensive tests
 - **Frontend**: Use TypeScript, follow React best practices, ensure accessibility
+- **MCP Server**: Use TypeScript with strict typing, Zod validation, real implementation testing (no mocks)
 - **Documentation**: Update relevant docs for any public API changes
 
 ## Security

@@ -43,10 +43,6 @@ export async function verifyContract(input: z.infer<typeof VerifyContractInputSc
       );
     }
     
-    console.log(`\n🔍 Verifying contract on ${networkConfig.name}`);
-    console.log(`📄 Contract: ${config.contractName}`);
-    console.log(`📍 Address: ${config.contractAddress}`);
-    console.log(`🌐 Explorer: ${networkConfig.explorerUrl}`);
     
     // Get contract source path
     let contractPath: string;
@@ -74,8 +70,6 @@ export async function verifyContract(input: z.infer<typeof VerifyContractInputSc
       
       const explorerUrl = `${networkConfig.explorerUrl}/address/${config.contractAddress}#code`;
       
-      console.log(`✅ Contract verified successfully!`);
-      console.log(`🔗 View verified code: ${explorerUrl}`);
       
       return {
         success: true,
@@ -92,8 +86,6 @@ export async function verifyContract(input: z.infer<typeof VerifyContractInputSc
         
         const explorerUrl = `${networkConfig.explorerUrl}/address/${config.contractAddress}#code`;
         
-        console.log(`ℹ️  Contract is already verified`);
-        console.log(`🔗 View verified code: ${explorerUrl}`);
         
         return {
           success: true,
@@ -109,7 +101,6 @@ export async function verifyContract(input: z.infer<typeof VerifyContractInputSc
     }
     
   } catch (error: any) {
-    console.error('❌ Contract verification failed:', error.message);
     
     return {
       success: false,
@@ -148,12 +139,10 @@ export async function verifyMultipleContracts(
   
   const results: VerificationResult[] = [];
   
-  console.log(`\n🔍 Batch verifying ${contracts.length} contracts on ${networkName}...`);
   
   for (let i = 0; i < contracts.length; i++) {
     const contract = contracts[i];
     
-    console.log(`\n📄 Verifying contract ${i + 1}/${contracts.length}: ${contract.name}`);
     
     try {
       const result = await verifyContract({
@@ -168,12 +157,10 @@ export async function verifyMultipleContracts(
       
       // Add delay between verifications to avoid rate limiting
       if (i < contracts.length - 1) {
-        console.log('⏳ Waiting 3 seconds before next verification...');
         await new Promise(resolve => setTimeout(resolve, 3000));
       }
       
     } catch (error: any) {
-      console.error(`❌ Failed to verify ${contract.name}:`, error.message);
       
       results.push({
         success: false,
@@ -185,7 +172,6 @@ export async function verifyMultipleContracts(
   }
   
   const successCount = results.filter(r => r.success).length;
-  console.log(`\n✅ Batch verification completed: ${successCount}/${contracts.length} contracts verified`);
   
   return results;
 }

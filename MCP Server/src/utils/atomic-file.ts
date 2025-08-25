@@ -117,7 +117,6 @@ export class AtomicFileWriter {
           } catch (error: any) {
             // File doesn't exist or is invalid - start with empty object
             if (error.code !== 'ENOENT') {
-              console.warn(`Warning: Could not read ${filePath}, starting fresh:`, error.message);
             }
           }
           

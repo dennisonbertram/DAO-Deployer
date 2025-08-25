@@ -25,13 +25,10 @@ async function main(): Promise<void> {
 
     // Handle graceful shutdown
     const shutdown = async (signal: string) => {
-      console.error(`\n=� Received ${signal}, shutting down gracefully...`);
       try {
         // Server graceful shutdown will happen automatically
-        console.error(' Server stopped successfully');
         process.exit(0);
       } catch (error) {
-        console.error('L Error during shutdown:', error);
         process.exit(1);
       }
     };
@@ -42,17 +39,14 @@ async function main(): Promise<void> {
     
     // Handle uncaught exceptions and promise rejections
     process.on('uncaughtException', (error: Error) => {
-      console.error('=� Uncaught Exception:', error);
       process.exit(1);
     });
 
     process.on('unhandledRejection', (reason: unknown) => {
-      console.error('=� Unhandled Promise Rejection:', reason);
       process.exit(1);
     });
 
   } catch (error: any) {
-    console.error('=� Failed to start DAO Deployer MCP Server:', error.message);
     process.exit(1);
   }
 }
@@ -60,7 +54,6 @@ async function main(): Promise<void> {
 // Check if this module is being run directly  
 if (import.meta.url.endsWith('index.js') && process.argv[1].endsWith('index.js')) {
   main().catch((error) => {
-    console.error('=� Fatal error:', error);
     process.exit(1);
   });
 }
