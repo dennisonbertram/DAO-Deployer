@@ -177,9 +177,61 @@ async function getContractABI(contractName: string): Promise<string> {
  * Get contract source code
  */
 async function getContractSource(contractName: string): Promise<string> {
-  // This would read the actual Solidity source files
-  // For now, return a placeholder
-  return `// Solidity source code for ${contractName}\n// Source files are located in the contracts/src directory\n// Path: ${CONTRACT_PATHS[contractName as keyof typeof CONTRACT_PATHS] || 'Unknown'}`;
+  // Read the actual Solidity source files
+  try {
+    const { promises: fs } = await import('fs');
+    const { join } = await import('path');
+    
+    const contractPath = CONTRACT_PATHS[contractName as keyof typeof CONTRACT_PATHS];
+    if (!contractPath) {
+      throw new Error(`Unknown contract: ${contractName}`);
+    }
+    
+    // Try different possible paths
+    const possiblePaths = [
+      join(process.cwd(), '..', 'contracts', contractPath),
+      join(process.cwd(), 'contracts', contractPath),
+      join(process.cwd(), '..', '..', 'contracts', contractPath),
+      contractPath // In case it's already an absolute path
+    ];
+    
+    for (const fullPath of possiblePaths) {
+      try {
+        const source = await fs.readFile(fullPath, 'utf-8');
+        return source;
+      } catch (readError) {
+        // Try next path
+        continue;
+      }
+    }
+    
+    // If no source file found, return informative message
+    return `// Solidity source code for ${contractName}
+// Contract path: ${contractPath}
+// Source file not found at expected locations
+// This may indicate the contracts directory is not in the expected location
+// 
+// To fix this:
+// 1. Ensure the contracts directory exists at ../contracts/ relative to the MCP server
+// 2. Verify the contract file exists at: ${contractPath}
+// 3. Check that the contracts have been compiled and source files are available
+
+pragma solidity ^0.8.19;
+
+// Contract interface would be here
+// Refer to the actual source files in the contracts directory
+`;
+    
+  } catch (error: any) {
+    return `// Error loading source for ${contractName}
+// Error: ${error.message}
+// 
+// The contract source files are typically located in:
+// - ../contracts/src/
+// - contracts/src/
+// 
+// Please ensure the contracts directory is properly structured.`;
+  }
 }
 
 /**

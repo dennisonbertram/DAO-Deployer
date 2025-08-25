@@ -24,39 +24,60 @@ export async function broadcastSignedTransaction(input: z.infer<typeof Broadcast
     // Get network configuration
     const networkConfig = await resolveNetworkConfig(getNetworkConfig(params.networkName));
     
+    // Import viem here to avoid import issues
+    const { createPublicClient, http } = await import('viem');
     
-    // This is a placeholder implementation
-    // In a real implementation, we would actually broadcast the transaction
-    // But since we want users to use the MCP Ledger server for this, we'll provide clear guidance
+    // Create public client for broadcasting
+    const publicClient = createPublicClient({
+      transport: http(networkConfig.rpcUrl)
+    });
     
-    throw new TransactionError(`
-🚨 Transaction Broadcasting Not Implemented
-
-This DAO Deployer MCP server prepares transactions but does not broadcast them.
-Please use your MCP Ledger server to sign and broadcast transactions.
-
-Transaction Details:
-- Network: ${params.networkName}
-- Signed Transaction: ${params.signedTransaction}
-- Expected Hash: ${params.expectedTransactionHash || 'Not provided'}
-
-Steps to Complete:
-1. Use your MCP Ledger server's broadcast functionality
-2. The Ledger server will return the transaction hash
-3. Use the wait-for-confirmation tool below if needed
-
-Example MCP Ledger server usage:
-{
-  "tool": "broadcast_transaction",
-  "arguments": {
-    "signed_transaction": "${params.signedTransaction}",
-    "network": "${params.networkName}"
-  }
-}
-`);
+    // Broadcast the signed transaction
+    const transactionHash = await publicClient.sendRawTransaction({
+      serializedTransaction: params.signedTransaction as Hex
+    });
+    
+    // Verify the expected hash matches if provided
+    if (params.expectedTransactionHash && transactionHash !== params.expectedTransactionHash) {
+      throw new TransactionError(`Transaction hash mismatch. Expected: ${params.expectedTransactionHash}, Got: ${transactionHash}`);
+    }
+    
+    let confirmationResult = undefined;
+    
+    // Wait for confirmation if requested
+    if (params.waitForConfirmation) {
+      try {
+        confirmationResult = await waitForTransactionConfirmation({
+          transactionHash,
+          networkConfig,
+          confirmations: params.confirmations
+        });
+      } catch (confirmError) {
+        // Transaction was broadcast successfully, but confirmation failed
+        // Return the hash so user knows transaction was sent
+      }
+    }
+    
+    return {
+      success: true,
+      transactionHash,
+      networkName: params.networkName,
+      explorerUrl: networkConfig.explorerUrl ? `${networkConfig.explorerUrl}/tx/${transactionHash}` : undefined,
+      confirmation: confirmationResult ? {
+        blockNumber: confirmationResult.blockNumber?.toString(),
+        blockHash: confirmationResult.blockHash,
+        gasUsed: confirmationResult.gasUsed?.toString(),
+        effectiveGasPrice: confirmationResult.effectiveGasPrice?.toString(),
+        contractAddress: confirmationResult.contractAddress,
+        status: confirmationResult.status
+      } : undefined,
+      message: confirmationResult 
+        ? 'Transaction broadcast and confirmed successfully'
+        : 'Transaction broadcast successfully. Use wait-for-confirmation to check status.'
+    };
     
   } catch (error: any) {
-    throw error;
+    throw new TransactionError(`Failed to broadcast transaction: ${error.message}`);
   }
 }
 
@@ -128,26 +149,76 @@ export async function checkTransactionStatus(input: z.infer<typeof CheckTransact
     // Get network configuration
     const networkConfig = await resolveNetworkConfig(getNetworkConfig(params.networkName));
     
+    // Import viem here to avoid import issues
+    const { createPublicClient, http } = await import('viem');
     
-    // This would check the transaction status
-    // For now, we'll provide guidance on using external tools
+    // Create public client for checking transaction
+    const publicClient = createPublicClient({
+      transport: http(networkConfig.rpcUrl)
+    });
     
-    const explorerUrl = `${networkConfig.explorerUrl}/tx/${params.transactionHash}`;
+    const explorerUrl = networkConfig.explorerUrl ? `${networkConfig.explorerUrl}/tx/${params.transactionHash}` : undefined;
     
-    return {
-      transactionHash: params.transactionHash,
-      networkName: params.networkName,
-      explorerUrl,
-      status: 'unknown',
-      message: `Transaction status check not implemented. Please check the block explorer: ${explorerUrl}`,
-      instructions: {
-        manual_check: `Visit ${explorerUrl}`,
-        api_check: networkConfig.explorerApiUrl ? `Use ${networkConfig.explorerApiUrl} API` : 'No API available',
-        ledger_server: 'Use your MCP Ledger server to check transaction status'
+    try {
+      // Get transaction receipt
+      const receipt = await publicClient.getTransactionReceipt({ 
+        hash: params.transactionHash as Hex 
+      });
+      
+      return {
+        transactionHash: params.transactionHash,
+        networkName: params.networkName,
+        explorerUrl,
+        status: receipt.status === 'success' ? 'confirmed' : 'failed',
+        blockNumber: receipt.blockNumber.toString(),
+        blockHash: receipt.blockHash,
+        gasUsed: receipt.gasUsed.toString(),
+        effectiveGasPrice: receipt.effectiveGasPrice?.toString(),
+        contractAddress: receipt.contractAddress || undefined,
+        confirmations: 'Available - use wait-for-confirmation to get exact count',
+        message: receipt.status === 'success' 
+          ? 'Transaction confirmed successfully'
+          : 'Transaction failed on blockchain'
+      };
+      
+    } catch (receiptError: any) {
+      // Try to get transaction details (might be pending)
+      try {
+        const transaction = await publicClient.getTransaction({ 
+          hash: params.transactionHash as Hex 
+        });
+        
+        return {
+          transactionHash: params.transactionHash,
+          networkName: params.networkName,
+          explorerUrl,
+          status: 'pending',
+          blockNumber: transaction.blockNumber?.toString() || 'pending',
+          blockHash: transaction.blockHash || 'pending',
+          gasPrice: transaction.gasPrice?.toString(),
+          maxFeePerGas: transaction.maxFeePerGas?.toString(),
+          nonce: transaction.nonce,
+          message: 'Transaction is pending confirmation'
+        };
+        
+      } catch (txError: any) {
+        // Transaction not found
+        return {
+          transactionHash: params.transactionHash,
+          networkName: params.networkName,
+          explorerUrl,
+          status: 'not_found',
+          message: 'Transaction not found on the blockchain. It may not have been broadcast yet or the hash may be incorrect.',
+          suggestions: [
+            'Verify the transaction hash is correct',
+            'Check if the transaction was actually broadcast',
+            'Wait a few moments and try again if recently broadcast'
+          ]
+        };
       }
-    };
+    }
     
   } catch (error: any) {
-    throw error;
+    throw new TransactionError(`Failed to check transaction status: ${error.message}`);
   }
 }

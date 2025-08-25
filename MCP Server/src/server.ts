@@ -207,7 +207,7 @@ export async function createServer(): Promise<Server> {
         },
         {
           name: 'broadcast-signed-transaction',
-          description: '🚨 NOT IMPLEMENTED: Guidance for using MCP Ledger server to broadcast signed transactions',
+          description: 'Broadcast a signed transaction to the blockchain and optionally wait for confirmation',
           inputSchema: {
             type: 'object',
             properties: {

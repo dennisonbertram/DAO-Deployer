@@ -294,9 +294,39 @@ export async function isContractVerified(
       return false; // Can't check if no API
     }
     
-    // This would require implementing API calls to check verification status
-    // For now, return false and let the verification attempt handle it
-    return false;
+    // Implement actual verification status checking
+    try {
+      const resolvedConfig = await resolveNetworkConfig(networkConfig);
+      const apiKey = resolvedConfig.explorerApiKey;
+      const apiUrl = resolvedConfig.explorerApiUrl;
+      
+      if (!apiKey || !apiUrl || apiKey.includes('${')) {
+        return false; // No valid API key available
+      }
+      
+      // Query the explorer API to check verification status
+      const response = await fetch(
+        `${apiUrl}?module=contract&action=getsourcecode&address=${contractAddress}&apikey=${apiKey}`
+      );
+      
+      if (!response.ok) {
+        return false;
+      }
+      
+      const data = await response.json() as any;
+      
+      if (data.status === '1' && data.result && data.result.length > 0) {
+        const contractInfo = data.result[0];
+        // Contract is verified if it has source code
+        return !!(contractInfo.SourceCode && contractInfo.SourceCode.trim() !== '');
+      }
+      
+      return false;
+      
+    } catch (apiError) {
+      // API call failed, assume not verified
+      return false;
+    }
     
   } catch {
     return false;

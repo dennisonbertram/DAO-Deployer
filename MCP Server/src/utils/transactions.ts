@@ -219,21 +219,48 @@ export async function prepareContractCall(params: {
 export async function broadcastSignedTransaction(params: SignedTransactionInput): Promise<TransactionBroadcastResult> {
   const { signedTransaction, networkName, expectedTransactionHash } = params;
 
-  // Broadcasting signed transaction
-
-  // This is a placeholder - in the real implementation, we'd need the network config
-  // For now, we'll create a simple error to indicate this needs to be implemented
-  throw new Error(`Transaction broadcasting not yet implemented. Please use the MCP Ledger server for transaction signing and broadcasting.
-
-Prepared transaction data:
-- Network: ${networkName}
-- Signed Transaction: ${signedTransaction}
-- Expected Hash: ${expectedTransactionHash || 'Not provided'}
-
-To complete deployment:
-1. Use your MCP Ledger server to sign and broadcast this transaction
-2. The Ledger server will return the transaction hash and receipt
-3. Use the verify-contract tool with the returned contract address if verification is needed`);
+  // Get network configuration first
+  const { getNetworkConfig, resolveNetworkConfig } = await import('../networks/index.js');
+  const networkConfig = await resolveNetworkConfig(getNetworkConfig(networkName));
+  
+  // Import viem for broadcasting
+  const { createPublicClient, http } = await import('viem');
+  
+  // Create public client for broadcasting
+  const publicClient = createPublicClient({
+    transport: http(networkConfig.rpcUrl)
+  });
+  
+  try {
+    // Broadcast the signed transaction
+    const transactionHash = await publicClient.sendRawTransaction({
+      serializedTransaction: signedTransaction as Hex
+    });
+    
+    // Verify the expected hash matches if provided
+    if (expectedTransactionHash && transactionHash !== expectedTransactionHash) {
+      throw new Error(`Transaction hash mismatch. Expected: ${expectedTransactionHash}, Got: ${transactionHash}`);
+    }
+    
+    // Wait for transaction receipt
+    const receipt = await publicClient.waitForTransactionReceipt({ 
+      hash: transactionHash,
+      confirmations: 1 
+    });
+    
+    return {
+      transactionHash: receipt.transactionHash,
+      blockNumber: receipt.blockNumber,
+      blockHash: receipt.blockHash,
+      gasUsed: receipt.gasUsed,
+      effectiveGasPrice: receipt.effectiveGasPrice,
+      status: receipt.status === 'success' ? 'success' : 'failed',
+      contractAddress: receipt.contractAddress || undefined
+    };
+    
+  } catch (error: any) {
+    throw new Error(`Transaction broadcast failed: ${error.message}`);
+  }
 }
 
 /**

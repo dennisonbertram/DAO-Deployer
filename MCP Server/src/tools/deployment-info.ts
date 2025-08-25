@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createPublicClient, http, Address } from 'viem';
 import { getNetworkConfig, resolveNetworkConfig } from '../networks/index.js';
-import { loadContractABI, ContractName } from '../utils/contracts.js';
+import { loadContractABI, ContractName, loadAllContractABIs } from '../utils/contracts.js';
 
 // Input validation schema for the get-deployment-info tool
 export const GetDeploymentInfoInputSchema = z.object({
@@ -131,25 +131,58 @@ async function findDeploymentTransaction(
 ): Promise<ContractDeploymentInfo['deploymentTransaction']> {
   
   try {
-    // This is a simplified approach - in practice, you'd want to use
-    // event logs or trace APIs to find the exact deployment transaction
-    
-    // For now, we'll try to get the transaction receipt if we can find it
-    // This would need enhancement with proper contract creation tracking
+    // Import viem functions for transaction searching
+    const { formatEther } = await import('viem');
     
     const currentBlock = await publicClient.getBlockNumber();
     const searchDepth = 1000n; // Search last 1000 blocks (adjust as needed)
     const startBlock = currentBlock > searchDepth ? currentBlock - searchDepth : 0n;
     
-    // Note: This is a simplified implementation
-    // In production, you'd want to use more efficient methods like:
-    // 1. Etherscan/block explorer APIs
-    // 2. Event logs for factory-deployed contracts  
-    // 3. Transaction indexing services
+    // Search through recent blocks for contract creation
+    for (let blockNumber = currentBlock; blockNumber > startBlock; blockNumber--) {
+      try {
+        const block = await publicClient.getBlock({ 
+          blockNumber, 
+          includeTransactions: true 
+        });
+        
+        if (!block.transactions) continue;
+        
+        // Check each transaction in the block
+        for (const tx of block.transactions) {
+          if (typeof tx === 'string') continue; // Skip if only hash returned
+          
+          // Check if it's a contract creation (to is null)
+          if (tx.to === null) {
+            try {
+              // Get the receipt to see if it created our contract
+              const receipt = await publicClient.getTransactionReceipt({ hash: tx.hash });
+              
+              if (receipt.contractAddress?.toLowerCase() === contractAddress.toLowerCase()) {
+                // Found the deployment transaction!
+                return {
+                  hash: tx.hash,
+                  blockNumber: receipt.blockNumber,
+                  timestamp: new Date(Number(block.timestamp) * 1000),
+                  deployer: tx.from,
+                  gasUsed: receipt.gasUsed,
+                  gasPrice: tx.gasPrice || 0n,
+                  value: tx.value
+                };
+              }
+            } catch (receiptError) {
+              // Continue searching if receipt fetch fails
+              continue;
+            }
+          }
+        }
+      } catch (blockError) {
+        // Continue searching if block fetch fails
+        continue;
+      }
+    }
     
-    
-    // Return undefined for now - this would need proper implementation
-    // based on the specific indexing capabilities available
+    // If not found in recent blocks, contract might be older
     return undefined;
     
   } catch (error) {
@@ -161,20 +194,86 @@ async function findDeploymentTransaction(
  * Try to get contract ABI from various sources
  */
 async function tryGetContractABI(contractAddress: string, networkName: string): Promise<any[] | undefined> {
-  // First, try to match against our known contracts
-  const knownContracts: Record<string, ContractName> = {
-    // This would be populated with known deployed contract addresses
-    // For now, we'll try to infer from bytecode patterns
-  };
-  
-  // Try to load ABI for known contract types
   try {
-    // This is a simplified approach - in production you might:
-    // 1. Check contract verification on block explorers
-    // 2. Match bytecode against known contract patterns
-    // 3. Use ABI databases or registries
+    // First, try to match against our known contracts
+    const knownContracts: Record<string, ContractName> = {
+      // This would be populated with known deployed contract addresses
+      // For now, we'll try to infer from bytecode patterns
+    };
     
-    // For now, return undefined
+    // If it's a known contract address, load its ABI
+    const contractName = knownContracts[contractAddress.toLowerCase()];
+    if (contractName) {
+      try {
+        const contractABI = await loadContractABI(contractName);
+        return contractABI.abi;
+      } catch (error) {
+        // Fall through to other methods
+      }
+    }
+    
+    // Get network configuration for potential API-based lookups
+    const networkConfig = getNetworkConfig(networkName);
+    
+    // Try to fetch ABI from block explorer API if available
+    if (networkConfig.explorerApiUrl && networkConfig.explorerApiKey) {
+      try {
+        const resolvedConfig = await resolveNetworkConfig(networkConfig);
+        const apiKey = resolvedConfig.explorerApiKey;
+        const apiUrl = resolvedConfig.explorerApiUrl;
+        
+        if (apiKey && apiUrl && !apiKey.includes('${')) {
+          const response = await fetch(
+            `${apiUrl}?module=contract&action=getabi&address=${contractAddress}&apikey=${apiKey}`
+          );
+          
+          if (response.ok) {
+            const data = await response.json() as any;
+            if (data.status === '1' && data.result) {
+              try {
+                const abi = JSON.parse(data.result);
+                return Array.isArray(abi) ? abi : undefined;
+              } catch (parseError) {
+                // Invalid JSON response
+              }
+            }
+          }
+        }
+      } catch (apiError) {
+        // API call failed, continue with other methods
+      }
+    }
+    
+    // Try to match bytecode against known patterns
+    try {
+      const { createPublicClient, http } = await import('viem');
+      const resolvedConfig = await resolveNetworkConfig(networkConfig);
+      
+      const publicClient = createPublicClient({
+        transport: http(resolvedConfig.rpcUrl)
+      });
+      
+      const bytecode = await publicClient.getBytecode({ 
+        address: contractAddress as `0x${string}` 
+      });
+      
+      if (bytecode) {
+        // Check against known contract bytecode patterns
+        // This is a basic approach - could be enhanced with more sophisticated matching
+        const allContracts = await loadAllContractABIs();
+        
+        for (const [name, contractData] of Object.entries(allContracts)) {
+          if (contractData.bytecode && bytecode.startsWith(contractData.bytecode.slice(0, 100))) {
+            // Potential match based on bytecode prefix
+            return contractData.abi;
+          }
+        }
+      }
+    } catch (bytecodeError) {
+      // Bytecode analysis failed
+    }
+    
+    // No ABI found through available methods
     return undefined;
     
   } catch (error) {
