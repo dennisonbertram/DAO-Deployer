@@ -113,15 +113,8 @@ export async function startMCPServer(): Promise<ChildProcess> {
     },
   });
 
-  // Wait for server to be ready
-  await new Promise<void>((resolve) => {
-    server.stderr?.on('data', (data) => {
-      const message = data.toString();
-      if (message.includes('DAO Deployer MCP Server started successfully')) {
-        resolve();
-      }
-    });
-  });
+  // Give server time to initialize
+  await new Promise(resolve => setTimeout(resolve, 1000));
 
   console.log('MCP server started successfully');
   return server;

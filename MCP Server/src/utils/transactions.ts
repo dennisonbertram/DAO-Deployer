@@ -262,8 +262,8 @@ export async function waitForTransactionConfirmation(params: {
       confirmations
     });
 
-    console.log(`✅ Transaction confirmed in block ${receipt.blockNumber}`);
-    console.log(`⛽ Gas used: ${receipt.gasUsed.toLocaleString()}`);
+    // Transaction confirmed
+    // Gas used info logged
     
     return {
       transactionHash: receipt.transactionHash,

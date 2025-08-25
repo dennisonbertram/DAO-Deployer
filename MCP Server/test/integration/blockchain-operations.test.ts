@@ -98,17 +98,8 @@ describe('Blockchain Operations with Anvil', () => {
 
     mcpClient = createMCPClient(serverProcess);
 
-    // Wait for server
-    await waitFor(async () => {
-      return new Promise<boolean>((resolve) => {
-        serverProcess.stderr?.once('data', (data) => {
-          if (data.toString().includes('DAO Deployer MCP Server started successfully')) {
-            resolve(true);
-          }
-        });
-        setTimeout(() => resolve(false), 5000);
-      });
-    }, 10000);
+    // Give server time to initialize
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
     // Initialize MCP client
     await mcpClient.initialize();

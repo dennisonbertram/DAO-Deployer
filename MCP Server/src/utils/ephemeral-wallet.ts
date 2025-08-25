@@ -75,9 +75,9 @@ export async function generateEphemeralWallet(networkName: string): Promise<Ephe
     const keyFile = join(WALLET_DIR, `${account.address.slice(2)}.json`);
     await fs.writeFile(keyFile, JSON.stringify(walletData, null, 2), { mode: 0o600 });
     
-    console.log(`✅ Generated ephemeral wallet: ${account.address}`);
-    console.log(`🔐 Saved securely to: ${keyFile}`);
-    console.log(`⚠️  Security: This is a software wallet - use hardware wallets for large amounts`);
+    // Generated ephemeral wallet
+    // Saved securely to keyfile
+    // Security warning for software wallet
     
     return {
       address: account.address,
@@ -117,7 +117,7 @@ export async function listEphemeralWallets(): Promise<EphemeralWallet[]> {
           keyFile: filePath
         });
       } catch (error) {
-        console.warn(`⚠️ Failed to read wallet file ${file}:`, error);
+        // Failed to read wallet file
       }
     }
     
@@ -125,7 +125,7 @@ export async function listEphemeralWallets(): Promise<EphemeralWallet[]> {
     return wallets.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     
   } catch (error: any) {
-    console.error('❌ Failed to list ephemeral wallets:', error.message);
+    // Failed to list ephemeral wallets
     return [];
   }
 }
@@ -156,7 +156,7 @@ export async function getWalletBalance(address: string, networkName: string): Pr
     };
     
   } catch (error: any) {
-    console.error(`❌ Failed to get balance for ${address}:`, error.message);
+    // Failed to get balance
     throw error;
   }
 }
@@ -297,7 +297,7 @@ export async function sweepEphemeralWallet(
     // Wait for transaction confirmation
     const receipt = await publicClient.waitForTransactionReceipt({ hash });
     
-    console.log(`✅ Transaction confirmed in block ${receipt.blockNumber}`);
+    // Transaction confirmed
     console.log(`⛽ Gas used: ${receipt.gasUsed.toLocaleString()}`);
     
     // Check if funds were successfully transferred

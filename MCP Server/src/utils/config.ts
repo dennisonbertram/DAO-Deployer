@@ -50,7 +50,7 @@ async function ensureConfigDir(): Promise<void> {
     await fs.access(CONFIG_DIR);
   } catch {
     await fs.mkdir(CONFIG_DIR, { recursive: true });
-    console.log(`✅ Created configuration directory: ${CONFIG_DIR}`);
+    // Created configuration directory
   }
 }
 
@@ -102,7 +102,7 @@ export async function saveAPIKeys(apiKeys: Partial<APIKeys>): Promise<void> {
       { mode: 0o600, retries: 3 }
     );
     
-    console.log(`✅ API keys saved to: ${CONFIG_FILE}`);
+    // API keys saved to config file
     
   } catch (error: any) {
     throw new Error(`Failed to save API keys: ${error.message}`);
@@ -242,10 +242,10 @@ export async function resetConfig(): Promise<void> {
     
     // Remove the config file
     await fs.unlink(CONFIG_FILE);
-    console.log('✅ Configuration reset successfully');
+    // Configuration reset successfully
   } catch (error: any) {
     if (error.code === 'ENOENT') {
-      console.log('✅ Configuration was already empty');
+      // Configuration was already empty
       return;
     }
     throw new Error(`Failed to reset configuration: ${error.message}`);
