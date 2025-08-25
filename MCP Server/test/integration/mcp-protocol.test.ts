@@ -16,13 +16,24 @@ describe('MCP Protocol Integration Tests', () => {
 
   beforeAll(async () => {
     // Build server before testing
-    const { execSync } = await import('child_process');
     const buildPath = join(process.cwd(), 'build', 'index.js');
     
     // Build if not exists
     if (!existsSync(buildPath)) {
       console.log('Building MCP server...');
-      execSync('npm run build', { cwd: process.cwd() });
+      const { execSync } = await import('child_process');
+      try {
+        execSync('npm run build', { 
+          cwd: process.cwd(),
+          timeout: 30000, // 30 second timeout
+          stdio: 'pipe' // Don't inherit stdio to avoid hanging
+        });
+      } catch (error: any) {
+        console.error('Build failed:', error.message);
+        throw new Error(`Failed to build MCP server: ${error.message}`);
+      }
+    } else {
+      console.log('Build already exists, skipping build step');
     }
   });
 
