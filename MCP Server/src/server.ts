@@ -66,9 +66,6 @@ import { listResources, readResource } from './resources/index.js';
 /**
  * Create and configure the DAO Deployer MCP server
  */
-// Disable console.log in production to avoid interfering with MCP protocol
-const originalLog = console.log;
-console.log = () => {}; // Silent logging for MCP protocol compliance
 
 export async function createServer(): Promise<Server> {
   const server = new Server(
@@ -454,6 +451,14 @@ export async function createServer(): Promise<Server> {
             },
             required: ['address', 'networkName']
           }
+        },
+        {
+          name: 'get-config-info',
+          description: 'Get configuration information and API key status',
+          inputSchema: {
+            type: 'object',
+            properties: {}
+          }
         }
       ]
     };
@@ -657,6 +662,19 @@ export async function createServer(): Promise<Server> {
           };
         }
 
+        case 'get-config-info': {
+          const result = await getConfigInfoTool();
+          const formatted = formatAPIKeyResult(result);
+          return {
+            content: [
+              {
+                type: 'text',
+                text: formatted
+              }
+            ]
+          };
+        }
+
         default:
           throw new McpError(
             ErrorCode.MethodNotFound,
@@ -713,12 +731,6 @@ export async function startServer() {
   const server = await createServer();
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  
-  // Re-enable console.log for startup message
-  console.log = originalLog;
-  console.log('🏛️ DAO Deployer MCP Server started with transaction preparation support');
-  console.log('💡 Use with MCP Ledger server for secure transaction signing');
-  console.log = () => {}; // Disable again for protocol compliance
 }
 
 // Start server if running directly

@@ -61,11 +61,11 @@ export async function generateEphemeralWalletTool(
   try {
     const config = GenerateEphemeralWalletInputSchema.parse(input);
     
-    console.log(`🔐 Generating ephemeral wallet for ${config.networkName}...`);
+    // Generating ephemeral wallet
     
     const wallet = await generateEphemeralWallet(config.networkName);
     
-    console.log(`✅ Ephemeral wallet generated: ${wallet.address}`);
+    // Ephemeral wallet generated
     
     return {
       success: true,
@@ -80,7 +80,7 @@ export async function generateEphemeralWalletTool(
     };
     
   } catch (error: any) {
-    console.error('❌ Failed to generate ephemeral wallet:', error.message);
+    // Failed to generate ephemeral wallet
     return {
       success: false,
       message: 'Failed to generate ephemeral wallet',
@@ -94,11 +94,11 @@ export async function generateEphemeralWalletTool(
  */
 export async function listEphemeralWalletsTool(): Promise<EphemeralWalletOperationResult> {
   try {
-    console.log('📋 Listing ephemeral wallets...');
+    // Listing ephemeral wallets
     
     const wallets = await listEphemeralWallets();
     
-    console.log(`✅ Found ${wallets.length} ephemeral wallets`);
+    // Ephemeral wallets found
     
     return {
       success: true,
@@ -115,7 +115,7 @@ export async function listEphemeralWalletsTool(): Promise<EphemeralWalletOperati
     };
     
   } catch (error: any) {
-    console.error('❌ Failed to list ephemeral wallets:', error.message);
+    // Failed to list ephemeral wallets
     return {
       success: false,
       message: 'Failed to list ephemeral wallets',
@@ -133,11 +133,11 @@ export async function checkWalletBalanceTool(
   try {
     const config = CheckWalletBalanceInputSchema.parse(input);
     
-    console.log(`💰 Checking balance for ${config.walletAddress} on ${config.networkName}...`);
+    // Checking wallet balance
     
     const balance = await getWalletBalance(config.walletAddress, config.networkName);
     
-    console.log(`✅ Balance: ${balance.balance} ETH (${balance.hasBalance ? 'funded' : 'empty'})`);
+    // Balance retrieved
     
     return {
       success: true,
@@ -153,7 +153,7 @@ export async function checkWalletBalanceTool(
     };
     
   } catch (error: any) {
-    console.error(`❌ Failed to check balance for ${input.walletAddress}:`, error.message);
+    // Failed to check balance
     return {
       success: false,
       message: 'Failed to check wallet balance',
@@ -171,8 +171,8 @@ export async function sweepEphemeralWalletTool(
   try {
     const config = SweepEphemeralWalletInputSchema.parse(input);
     
-    console.log(`💸 Sweeping funds from ${config.walletAddress} to ${config.recipientAddress}...`);
-    console.log(`🔐 Delete key after sweep: ${config.deleteKeyAfterSweep ? 'Yes' : 'No'}`);
+    // Sweeping funds
+    // Key deletion setting configured
     
     const result = await sweepEphemeralWallet(
       config.walletAddress,
@@ -182,12 +182,12 @@ export async function sweepEphemeralWalletTool(
     );
     
     if (result.success) {
-      console.log(`✅ Swept ${result.amountSwept} ETH to ${result.recipientAddress}`);
+      // Funds swept successfully
       if (result.keyDeleted) {
-        console.log(`🗑️ Private key deleted successfully`);
+        // Private key deleted
       }
     } else {
-      console.error(`❌ Sweep failed: ${result.error}`);
+      // Sweep failed
     }
     
     return {
@@ -207,7 +207,7 @@ export async function sweepEphemeralWalletTool(
     };
     
   } catch (error: any) {
-    console.error(`❌ Failed to sweep wallet ${input.walletAddress}:`, error.message);
+    // Failed to sweep wallet
     return {
       success: false,
       message: 'Failed to sweep ephemeral wallet',
@@ -225,7 +225,7 @@ export async function deleteEphemeralWalletTool(
   try {
     const config = DeleteEphemeralWalletInputSchema.parse(input);
     
-    console.log(`🗑️ Deleting ephemeral wallet ${config.walletAddress}...`);
+    // Deleting ephemeral wallet
     
     // Check balance first to warn user
     try {
@@ -238,15 +238,15 @@ export async function deleteEphemeralWalletTool(
         };
       }
     } catch (balanceError) {
-      console.warn('⚠️ Could not check balance before deletion:', balanceError);
+      // Could not check balance before deletion
     }
     
     const deleted = await deleteEphemeralWallet(config.walletAddress, config.networkName);
     
     if (deleted) {
-      console.log(`✅ Ephemeral wallet deleted: ${config.walletAddress}`);
+      // Ephemeral wallet deleted
     } else {
-      console.warn(`⚠️ Wallet file not found: ${config.walletAddress}`);
+      // Wallet file not found
     }
     
     return {
@@ -262,7 +262,7 @@ export async function deleteEphemeralWalletTool(
     };
     
   } catch (error: any) {
-    console.error(`❌ Failed to delete wallet ${input.walletAddress}:`, error.message);
+    // Failed to delete wallet
     return {
       success: false,
       message: 'Failed to delete ephemeral wallet',

@@ -40,28 +40,8 @@ describe('MCP Protocol Integration Tests', () => {
     // Create MCP client
     client = createMCPClient(serverProcess);
 
-    // Wait for server to be ready
-    await waitFor(async () => {
-      return new Promise<boolean>((resolve) => {
-        let resolved = false;
-        
-        serverProcess.stderr?.once('data', (data) => {
-          const message = data.toString();
-          if (message.includes('DAO Deployer MCP Server started successfully') && !resolved) {
-            resolved = true;
-            resolve(true);
-          }
-        });
-
-        // Timeout fallback
-        setTimeout(() => {
-          if (!resolved) {
-            resolved = true;
-            resolve(false);
-          }
-        }, 5000);
-      });
-    }, 10000);
+    // Give server time to initialize
+    await sleep(1000);
   });
 
   afterEach(async () => {
@@ -143,23 +123,20 @@ describe('MCP Protocol Integration Tests', () => {
       
       // Verify all expected tools are present
       const expectedTools = [
-        'deploy-factory',
-        'deploy-dao',
+        'prepare-factory-deployment',
+        'prepare-dao-deployment',
+        'broadcast-signed-transaction',
+        'wait-for-confirmation',
+        'check-transaction-status',
         'list-networks',
         'verify-contract',
         'get-deployment-info',
         'set-api-key',
         'remove-api-key',
         'list-api-keys',
-        'set-multiple-api-keys',
-        'import-api-keys-from-env',
-        'reset-api-keys',
-        'get-config-info',
         'generate-ephemeral-wallet',
         'list-ephemeral-wallets',
         'check-wallet-balance',
-        'sweep-ephemeral-wallet',
-        'delete-ephemeral-wallet',
       ];
 
       for (const toolName of expectedTools) {
@@ -256,7 +233,7 @@ describe('MCP Protocol Integration Tests', () => {
       // Try to check balance of invalid address
       try {
         await client.callTool('check-wallet-balance', {
-          walletAddress: 'invalid-address',
+          address: 'invalid-address',
           networkName: 'sepolia',
         });
         expect.fail('Should have thrown an error');

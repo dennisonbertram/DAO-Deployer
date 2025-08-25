@@ -61,7 +61,7 @@ export async function setAPIKeyTool(input: z.infer<typeof SetAPIKeyInputSchema>)
   try {
     const { keyName, value } = SetAPIKeyInputSchema.parse(input);
     
-    console.log(`🔑 Setting API key: ${keyName}`);
+    // Setting API key
     
     // Validate API key format
     const validation = validateAPIKey(keyName, value);
@@ -76,7 +76,7 @@ export async function setAPIKeyTool(input: z.infer<typeof SetAPIKeyInputSchema>)
     // Save the API key
     await setAPIKey(keyName, value);
     
-    console.log(`✅ API key ${keyName} saved successfully`);
+    // API key saved
     
     return {
       success: true,
@@ -88,7 +88,7 @@ export async function setAPIKeyTool(input: z.infer<typeof SetAPIKeyInputSchema>)
     };
     
   } catch (error: any) {
-    console.error(`❌ Failed to set API key:`, error.message);
+    // Failed to set API key
     return {
       success: false,
       message: `Failed to set API key`,
@@ -104,11 +104,11 @@ export async function removeAPIKeyTool(input: z.infer<typeof RemoveAPIKeyInputSc
   try {
     const { keyName } = RemoveAPIKeyInputSchema.parse(input);
     
-    console.log(`🗑️  Removing API key: ${keyName}`);
+    // Removing API key
     
     await removeAPIKey(keyName);
     
-    console.log(`✅ API key ${keyName} removed successfully`);
+    // API key removed
     
     return {
       success: true,
@@ -120,7 +120,7 @@ export async function removeAPIKeyTool(input: z.infer<typeof RemoveAPIKeyInputSc
     };
     
   } catch (error: any) {
-    console.error(`❌ Failed to remove API key:`, error.message);
+    // Failed to remove API key
     return {
       success: false,
       message: `Failed to remove API key`,
@@ -136,7 +136,7 @@ export async function setMultipleAPIKeysTool(input: z.infer<typeof SetMultipleAP
   try {
     const { apiKeys } = SetMultipleAPIKeysInputSchema.parse(input);
     
-    console.log(`🔑 Setting ${Object.keys(apiKeys).length} API keys...`);
+    // Setting multiple API keys
     
     const results: { key: string; success: boolean; error?: string }[] = [];
     const validatedKeys: Partial<APIKeys> = {};
@@ -166,9 +166,9 @@ export async function setMultipleAPIKeysTool(input: z.infer<typeof SetMultipleAP
     const successful = results.filter(r => r.success).length;
     const failed = results.filter(r => !r.success).length;
     
-    console.log(`✅ Successfully set ${successful} API keys`);
+    // API keys set successfully
     if (failed > 0) {
-      console.log(`⚠️  Failed to set ${failed} API keys`);
+      // Some API keys failed to set
     }
     
     return {
@@ -182,7 +182,7 @@ export async function setMultipleAPIKeysTool(input: z.infer<typeof SetMultipleAP
     };
     
   } catch (error: any) {
-    console.error(`❌ Failed to set multiple API keys:`, error.message);
+    // Failed to set multiple API keys
     return {
       success: false,
       message: `Failed to set API keys`,
@@ -196,7 +196,7 @@ export async function setMultipleAPIKeysTool(input: z.infer<typeof SetMultipleAP
  */
 export async function listAPIKeysTool(): Promise<APIKeyOperationResult> {
   try {
-    console.log(`📋 Listing API key configuration...`);
+    // Listing API key configuration
     
     const keyStatus = await listAPIKeys();
     const configInfo = await getConfigInfo();
@@ -204,7 +204,7 @@ export async function listAPIKeysTool(): Promise<APIKeyOperationResult> {
     const configured = keyStatus.filter(k => k.configured);
     const missing = keyStatus.filter(k => !k.configured);
     
-    console.log(`✅ Found ${configured.length} configured API keys`);
+    // API keys found
     
     return {
       success: true,
@@ -221,7 +221,7 @@ export async function listAPIKeysTool(): Promise<APIKeyOperationResult> {
     };
     
   } catch (error: any) {
-    console.error(`❌ Failed to list API keys:`, error.message);
+    // Failed to list API keys
     return {
       success: false,
       message: `Failed to list API keys`,
@@ -235,13 +235,13 @@ export async function listAPIKeysTool(): Promise<APIKeyOperationResult> {
  */
 export async function importAPIKeysFromEnvTool(): Promise<APIKeyOperationResult> {
   try {
-    console.log(`📥 Importing API keys from environment variables...`);
+    // Importing API keys from environment
     
     const result = await importFromEnv();
     
-    console.log(`✅ Imported ${result.imported.length} API keys from environment`);
+    // API keys imported
     if (result.skipped.length > 0) {
-      console.log(`⚠️  Skipped ${result.skipped.length} missing environment variables`);
+      // Some environment variables were missing
     }
     
     return {
@@ -256,7 +256,7 @@ export async function importAPIKeysFromEnvTool(): Promise<APIKeyOperationResult>
     };
     
   } catch (error: any) {
-    console.error(`❌ Failed to import API keys:`, error.message);
+    // Failed to import API keys
     return {
       success: false,
       message: `Failed to import API keys from environment`,
@@ -270,13 +270,13 @@ export async function importAPIKeysFromEnvTool(): Promise<APIKeyOperationResult>
  */
 export async function resetAPIKeysTool(): Promise<APIKeyOperationResult> {
   try {
-    console.log(`🔄 Resetting API key configuration...`);
+    // Resetting API key configuration
     
     // Backup before reset
     const backupFile = await backupConfig();
     await resetConfig();
     
-    console.log(`✅ API key configuration reset successfully`);
+    // API key configuration reset
     
     return {
       success: true,
@@ -288,7 +288,7 @@ export async function resetAPIKeysTool(): Promise<APIKeyOperationResult> {
     };
     
   } catch (error: any) {
-    console.error(`❌ Failed to reset configuration:`, error.message);
+    // Failed to reset configuration
     return {
       success: false,
       message: `Failed to reset API key configuration`,
@@ -302,13 +302,13 @@ export async function resetAPIKeysTool(): Promise<APIKeyOperationResult> {
  */
 export async function getConfigInfoTool(): Promise<APIKeyOperationResult> {
   try {
-    console.log(`📊 Getting configuration information...`);
+    // Getting configuration information
     
     const info = await getConfigInfo();
     const keyStatus = await listAPIKeys();
     const configured = keyStatus.filter(k => k.configured);
     
-    console.log(`✅ Configuration info retrieved`);
+    // Configuration info retrieved
     
     return {
       success: true,
@@ -322,7 +322,7 @@ export async function getConfigInfoTool(): Promise<APIKeyOperationResult> {
     };
     
   } catch (error: any) {
-    console.error(`❌ Failed to get configuration info:`, error.message);
+    // Failed to get configuration info
     return {
       success: false,
       message: `Failed to get configuration information`,
