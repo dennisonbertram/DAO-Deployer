@@ -108,8 +108,9 @@ export async function waitForConfirmation(input: z.infer<typeof WaitForConfirmat
       confirmations: params.confirmations
     });
     
-    
-    if (result.contractAddress) {
+    // Ensure result exists before accessing properties
+    if (!result) {
+      throw new TransactionError('No transaction confirmation result received');
     }
     
     return {
@@ -119,7 +120,7 @@ export async function waitForConfirmation(input: z.infer<typeof WaitForConfirmat
       gasUsed: result.gasUsed?.toString(),
       effectiveGasPrice: result.effectiveGasPrice?.toString(),
       status: result.status,
-      contractAddress: result.contractAddress,
+      contractAddress: result.contractAddress || undefined,
       confirmations: params.confirmations,
       networkName: params.networkName,
       explorerUrl: `${networkConfig.explorerUrl}/tx/${params.transactionHash}`
