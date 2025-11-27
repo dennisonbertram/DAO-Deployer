@@ -214,7 +214,7 @@ export interface ContractError {
   name: string;
   message: string;
   code?: string;
-  data?: any;
+  data?: unknown;
 }
 
 // Loading states for different operations

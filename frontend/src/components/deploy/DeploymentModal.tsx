@@ -1,9 +1,11 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
-import { Hash } from 'viem'
+import { Hash, decodeEventLog } from 'viem'
 import { useWaitForTransactionReceipt, useChainId } from 'wagmi'
 import { DAOConfig, DeploymentStatus } from '@/types/deploy'
+import { FACTORY_ABI } from '@/lib/contracts/abis'
+import { useToast } from '@/hooks/use-toast'
 
 interface DeployedAddresses {
   token: string
@@ -38,6 +40,7 @@ export default function DeploymentModal({
   const [deployedAddresses, setDeployedAddresses] = useState<DeployedAddresses | null>(null)
   const [error, setError] = useState<string | null>(null)
   const chainId = useChainId()
+  const { toast } = useToast()
 
   // Watch for transaction receipt
   const { 
@@ -54,18 +57,6 @@ export default function DeploymentModal({
     }
   })
 
-  useEffect(() => {
-    if (transactionHash) {
-      console.info('[DeploymentModal] Waiting for receipt', { chainId, transactionHash })
-    }
-  }, [transactionHash, chainId])
-
-  useEffect(() => {
-    if (isWaitingForReceipt) {
-      console.info('[DeploymentModal] Still waiting for receipt...')
-    }
-  }, [isWaitingForReceipt])
-
   // Update deployment step based on transaction status
   useEffect(() => {
     if (transactionHash && deploymentStep === 'preparing') {
@@ -77,28 +68,60 @@ export default function DeploymentModal({
   // Handle successful transaction
   useEffect(() => {
     if (receipt && deploymentStep === 'mining') {
-      console.info('[DeploymentModal] Receipt received')
-      // Parse deployment addresses from receipt logs
-      // In a real implementation, you would parse the actual contract deployment logs
-      const mockAddresses: DeployedAddresses = {
-        token: `0x${receipt.transactionHash.slice(2, 42)}`,
-        governor: `0x${receipt.transactionHash.slice(10, 50)}`, 
-        timelock: `0x${receipt.transactionHash.slice(18, 58)}`
-      }
-      
-      setDeployedAddresses(mockAddresses)
-      setDeploymentStep('success')
-      
-      // Call completion callback
-      if (onComplete) {
-        const deploymentData: DeploymentData = {
-          config,
-          transactionHash: transactionHash!,
-          deployedAddresses: mockAddresses,
-          deploymentTimestamp: Date.now(),
-          networkName: 'Local Network' // Could be dynamic based on current chain
+      try {
+        // Parse the DAODeployed event from transaction logs
+        // receipt.logs is an array of log objects with data and topics (from wagmi's TransactionReceipt type)
+        const daoDeployedEvent = receipt.logs.find((log) => {
+          try {
+            const decoded = decodeEventLog({
+              abi: FACTORY_ABI,
+              data: log.data,
+              topics: log.topics as [] | [`0x${string}`, ...`0x${string}`[]],
+            })
+            return decoded.eventName === 'DAODeployed'
+          } catch {
+            return false
+          }
+        })
+
+        if (!daoDeployedEvent) {
+          throw new Error('DAODeployed event not found in transaction logs')
         }
-        onComplete(deploymentData)
+
+        // Decode the event to extract deployed addresses
+        const decoded = decodeEventLog({
+          abi: FACTORY_ABI,
+          data: daoDeployedEvent.data,
+          topics: daoDeployedEvent.topics as [] | [`0x${string}`, ...`0x${string}`[]],
+        })
+
+        if (decoded.eventName !== 'DAODeployed') {
+          throw new Error('Unexpected event type')
+        }
+
+        const deployedAddressesFromEvent: DeployedAddresses = {
+          token: decoded.args.token,
+          governor: decoded.args.governor,
+          timelock: decoded.args.timelock,
+        }
+
+        setDeployedAddresses(deployedAddressesFromEvent)
+        setDeploymentStep('success')
+
+        // Call completion callback
+        if (onComplete) {
+          const deploymentData: DeploymentData = {
+            config,
+            transactionHash: transactionHash!,
+            deployedAddresses: deployedAddressesFromEvent,
+            deploymentTimestamp: Date.now(),
+            networkName: 'Local Network' // Could be dynamic based on current chain
+          }
+          onComplete(deploymentData)
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to parse deployment addresses from transaction logs')
+        setDeploymentStep('error')
       }
     }
   }, [receipt, deploymentStep, config, transactionHash, onComplete])
@@ -106,7 +129,6 @@ export default function DeploymentModal({
   // Handle transaction errors
   useEffect(() => {
     if (receiptError && receiptErrorDetails) {
-      console.error('[DeploymentModal] Receipt error', receiptErrorDetails)
       setError(receiptErrorDetails.message)
       setDeploymentStep('error')
     }
@@ -115,11 +137,19 @@ export default function DeploymentModal({
   const copyToClipboard = useCallback(async (text: string) => {
     try {
       await navigator.clipboard.writeText(text)
-      // Could add a toast notification here
+      toast({
+        title: 'Copied to clipboard',
+        description: 'The information has been copied to your clipboard.',
+      } as any)
     } catch (err) {
       console.error('Failed to copy to clipboard:', err)
+      toast({
+        title: 'Copy failed',
+        description: 'Failed to copy to clipboard. Please try again.',
+        variant: 'destructive',
+      } as any)
     }
-  }, [])
+  }, [toast])
 
   const downloadDeploymentData = useCallback(() => {
     if (!deployedAddresses || !transactionHash) return

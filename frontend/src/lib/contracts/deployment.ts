@@ -1,5 +1,5 @@
 // Smart contract deployment utilities
-import { Address, Hash, createPublicClient, createWalletClient, http, defineChain, parseEther } from 'viem';
+import { Address, Hash, createPublicClient, createWalletClient, http, defineChain, parseEther, WalletClient, PublicClient, Abi, Account } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { loadContractArtifacts, validateArtifacts } from './artifacts';
 
@@ -25,7 +25,7 @@ export interface NetworkInfo {
 }
 
 interface ContractArtifact {
-  abi: any[];
+  abi: Abi;
   bytecode: {
     object: string;
   };
@@ -53,19 +53,20 @@ interface FullDeploymentResult {
  * Deploy a single contract
  */
 export async function deployContract(
-  walletClient: any,
-  publicClient: any,
+  walletClient: WalletClient & { account: Account },
+  publicClient: PublicClient,
   artifact: ContractArtifact,
-  constructorArgs: any[] = []
+  constructorArgs: unknown[] = []
 ): Promise<DeploymentResult> {
   try {
-    // Deploy the contract
+    // Deploy the contract - viem requires explicit typing for deployContract parameters
     const hash = await walletClient.deployContract({
       abi: artifact.abi,
       bytecode: artifact.bytecode.object as `0x${string}`,
-      args: constructorArgs,
+      args: constructorArgs as readonly unknown[],
       gas: BigInt(5000000), // Set reasonable gas limit
-    });
+      account: walletClient.account,
+    } as Parameters<typeof walletClient.deployContract>[0]);
 
     // Wait for transaction receipt
     const receipt = await publicClient.waitForTransactionReceipt({ hash });
@@ -95,13 +96,11 @@ export async function deploySmartContractSystem(
 ): Promise<FullDeploymentResult> {
   try {
     // Validate artifacts first
-    console.log('Validating contract artifacts...');
     if (!validateArtifacts()) {
       throw new Error('Contract artifacts validation failed. Please ensure contracts are compiled.');
     }
 
     // Load contract artifacts
-    console.log('Loading contract artifacts...');
     const artifacts = loadContractArtifacts();
 
     // Create chain configuration
@@ -147,36 +146,26 @@ export async function deploySmartContractSystem(
       throw new Error(`Insufficient balance. Required: 0.1 ETH, Current: ${Number(balance) / 1e18} ETH`);
     }
 
-    console.log(`Deploying contracts to ${networkInfo.name} (${networkInfo.chainId})`);
-    console.log(`Deployer: ${account.address}`);
-    console.log(`Balance: ${Number(balance) / 1e18} ETH`);
-
     // Deploy implementation contracts first
-    console.log('Deploying implementation contracts...');
-    
     const tokenImplementation = await deployContract(
       walletClient,
       publicClient,
       artifacts.tokenImplementation
     );
-    console.log(`Token implementation deployed at: ${tokenImplementation.contractAddress}`);
 
     const governorImplementation = await deployContract(
       walletClient,
       publicClient,
       artifacts.governorImplementation
     );
-    console.log(`Governor implementation deployed at: ${governorImplementation.contractAddress}`);
 
     const timelockImplementation = await deployContract(
       walletClient,
       publicClient,
       artifacts.timelockImplementation
     );
-    console.log(`Timelock implementation deployed at: ${timelockImplementation.contractAddress}`);
 
     // Deploy factory with implementation addresses
-    console.log('Deploying factory contract...');
     const factory = await deployContract(
       walletClient,
       publicClient,
@@ -187,7 +176,6 @@ export async function deploySmartContractSystem(
         timelockImplementation.contractAddress,
       ]
     );
-    console.log(`Factory deployed at: ${factory.contractAddress}`);
 
     const result: FullDeploymentResult = {
       factory,
@@ -199,11 +187,9 @@ export async function deploySmartContractSystem(
       timestamp: new Date().toISOString(),
     };
 
-    console.log('Deployment completed successfully!');
     return result;
 
   } catch (error) {
-    console.error('Deployment failed:', error);
     throw error;
   }
 }
@@ -259,7 +245,6 @@ export async function estimateDeploymentGas(
       estimatedCostEth,
     };
   } catch (error) {
-    console.error('Gas estimation failed:', error);
     throw error;
   }
 }
@@ -339,7 +324,6 @@ export async function checkExistingDeployment(
     };
 
   } catch (error) {
-    console.error('Error checking existing deployment:', error);
     return { isDeployed: false };
   }
 }

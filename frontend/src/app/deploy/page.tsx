@@ -1,15 +1,15 @@
 'use client'
 
-import { useState, useCallback, useMemo, useEffect } from 'react';
-import { Hash } from 'viem';
-import { DAOConfig, ValidationError, DeploymentStep, DeploymentStatus, GasEstimate } from '@/types/deploy';
+import { useState, useCallback, useMemo } from 'react';
+import { DAOConfig, ValidationError, DeploymentStep } from '@/types/deploy';
 import ProgressBar from '@/components/deploy/ProgressBar';
 import BasicInfo from './steps/BasicInfo';
 import GovernanceParams from './steps/GovernanceParams';
 import AdvancedSettings from './steps/AdvancedSettings';
 import ReviewDeploy from './steps/ReviewDeploy';
 import DeploymentModal from '@/components/deploy/DeploymentModal';
-import { useFactory } from '@/hooks/contracts';
+import { DeploymentProvider, useDeployment } from '@/contexts/DeploymentContext';
+import { PageErrorBoundary } from '@/components/PageErrorBoundary';
 
 // Check if we're in development to set default network
 const isDevelopment = process.env.NODE_ENV === 'development' || 
@@ -36,54 +36,25 @@ const INITIAL_CONFIG: Partial<DAOConfig> = {
   enableTreasuryDiversification: false,
 };
 
-export default function DeployPage() {
+/**
+ * Inner component that uses the deployment context
+ * This is separated to allow the provider to wrap it
+ */
+function DeployPageContent() {
   const [currentStep, setCurrentStep] = useState(1);
-  const [config, setConfig] = useState<Partial<DAOConfig>>(INITIAL_CONFIG);
   const [stepErrors, setStepErrors] = useState<Record<number, ValidationError[]>>({});
-  const [deploymentStatus, setDeploymentStatus] = useState<DeploymentStatus>({ status: 'idle' });
-  const [showDeploymentModal, setShowDeploymentModal] = useState(false);
-  const [deploymentHash, setDeploymentHash] = useState<Hash | undefined>();
 
-  // Get deployment state from factory hooks
-  const { 
-    deployDAO,
-    deployHash, 
-    isDeploying, 
-    deploySuccess, 
-    deployError,
-    deployErrorDetails,
-    isSupported
-  } = useFactory();
-
-  // Open modal only after wallet confirmation (when a tx hash exists)
-  useEffect(() => {
-    if (deployHash) {
-      console.info('[DeployPage] Received deploy hash, opening modal', { deployHash });
-      if (!showDeploymentModal) setShowDeploymentModal(true);
-      setDeploymentHash(deployHash as Hash);
-      setDeploymentStatus({ status: 'deploying', transactionHash: deployHash });
-    }
-  }, [deployHash, showDeploymentModal]);
-
-  // Log isDeploying / error transitions
-  useEffect(() => {
-    if (isDeploying) {
-      console.info('[DeployPage] isDeploying true');
-    }
-  }, [isDeploying]);
-  useEffect(() => {
-    if (deployError) {
-      console.error('[DeployPage] deployError', deployErrorDetails);
-    }
-  }, [deployError, deployErrorDetails]);
-  
-  // Mock gas estimate - in real implementation, this would come from Web3
-  const gasEstimate: GasEstimate = {
-    gasLimit: '2500000',
-    gasPrice: '20',
-    totalCost: '0.05',
-    totalCostUSD: '150.00'
-  };
+  // Get all deployment state from context
+  const {
+    config,
+    updateConfig,
+    deploymentStatus,
+    setDeploymentStatus,
+    showDeploymentModal,
+    setShowDeploymentModal,
+    deploymentHash,
+    setDeploymentHash,
+  } = useDeployment();
 
   const steps: DeploymentStep[] = useMemo(() => [
     {
@@ -115,10 +86,6 @@ export default function DeployPage() {
       isActive: currentStep === 4,
     },
   ], [currentStep, stepErrors, deploymentStatus.status]);
-
-  const updateConfig = useCallback((updates: Partial<DAOConfig>) => {
-    setConfig(prev => ({ ...prev, ...updates }));
-  }, []);
 
   const handleStepValidation = useCallback((step: number, errors: ValidationError[]) => {
     setStepErrors(prev => ({ ...prev, [step]: errors }));
@@ -159,7 +126,6 @@ export default function DeployPage() {
 
   const handleDeploy = useCallback(() => {
     // This is now just a placeholder - the modal will show automatically when isDeploying becomes true
-    console.info('[DeployPage] Deploy triggered');
   }, []);
 
   const renderCurrentStep = () => {
@@ -191,16 +157,8 @@ export default function DeployPage() {
       case 4:
         return (
           <ReviewDeploy
-            config={config as DAOConfig}
             onValidation={handleStep4Validation}
             onDeploy={handleDeploy}
-            gasEstimate={gasEstimate}
-            deploymentStatus={deploymentStatus}
-            deployDAO={deployDAO}
-            isSupported={isSupported}
-            isDeploying={isDeploying}
-            deployError={deployError}
-            deployErrorDetails={deployErrorDetails}
           />
         );
       default:
@@ -323,5 +281,18 @@ export default function DeployPage() {
         />
       </div>
     </div>
+  );
+}
+
+/**
+ * Main export component that provides deployment context
+ */
+export default function DeployPage() {
+  return (
+    <PageErrorBoundary>
+      <DeploymentProvider initialConfig={INITIAL_CONFIG}>
+        <DeployPageContent />
+      </DeploymentProvider>
+    </PageErrorBoundary>
   );
 }

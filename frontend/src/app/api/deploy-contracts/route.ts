@@ -80,8 +80,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Server-side deployment with private key
-    console.log(`Starting deployment to ${networkInfo.name} (${networkInfo.chainId})`);
-    
     const deploymentResult = await deploySmartContractSystem(
       networkInfo,
       deployerPrivateKey
@@ -131,8 +129,6 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Deployment error:', error);
-    
     let errorMessage = 'Failed to deploy contracts';
     if (error instanceof Error) {
       if (error.message.includes('ECONNREFUSED')) {
@@ -179,7 +175,6 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Error fetching deployment info:', error);
     return NextResponse.json(
       { 
         error: 'Failed to fetch deployment info',

@@ -2,19 +2,21 @@
 import { DeploymentStep } from '@/types/deploy';
 import { Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { memo, useMemo } from 'react';
 
 interface ProgressBarProps {
   steps: DeploymentStep[];
   currentStep: number;
 }
 
-export default function ProgressBar({ steps, currentStep }: ProgressBarProps) {
-  const shortTitles: Record<number, string> = {
+function ProgressBar({ steps, currentStep }: ProgressBarProps) {
+  // Memoize short titles
+  const shortTitles: Record<number, string> = useMemo(() => ({
     1: 'Basics',
     2: 'Governance',
     3: 'Advanced',
     4: 'Review',
-  };
+  }), []);
   return (
     <div className="w-full space-y-2 pb-8">
       <div className="relative w-full py-2">
@@ -59,3 +61,6 @@ export default function ProgressBar({ steps, currentStep }: ProgressBarProps) {
     </div>
   );
 }
+
+// Wrap component in React.memo to prevent unnecessary re-renders when props haven't changed
+export default memo(ProgressBar);

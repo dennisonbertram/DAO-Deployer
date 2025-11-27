@@ -1,288 +1,25 @@
 // Wallet connection header component with network switching capabilities
 'use client';
 
-import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useAccount, useChainId, useSwitchChain } from 'wagmi';
 import { useState } from 'react';
-import { ChevronDownIcon, PlusIcon, BanknotesIcon } from '@heroicons/react/24/outline';
-import { cn } from '@/lib/utils';
-import { chains } from '@/lib/wagmi';
-import { localhost } from '@/lib/contracts/addresses';
-import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-
-interface CustomNetworkFormProps {
-  onClose: () => void;
-  onAdd: (network: any) => void;
-}
-
-function CustomNetworkForm({ onClose, onAdd }: CustomNetworkFormProps) {
-  const [formData, setFormData] = useState({
-    name: '',
-    chainId: '',
-    rpcUrl: '',
-    symbol: '',
-    blockExplorer: '',
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    const network = {
-      id: parseInt(formData.chainId),
-      name: formData.name,
-      nativeCurrency: { 
-        name: formData.symbol, 
-        symbol: formData.symbol, 
-        decimals: 18 
-      },
-      rpcUrls: {
-        default: { http: [formData.rpcUrl] },
-        public: { http: [formData.rpcUrl] },
-      },
-      blockExplorers: formData.blockExplorer ? {
-        default: {
-          name: 'Explorer',
-          url: formData.blockExplorer,
-        }
-      } : undefined,
-    };
-    
-    onAdd(network);
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm supports-[backdrop-filter]:bg-background/60 flex items-center justify-center">
-      <div className="bg-background border rounded-lg shadow-lg p-6 w-96 max-w-full">
-        <h3 className="text-lg font-semibold mb-4">Add Custom Network</h3>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Network Name</label>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-              className="w-full border rounded-md px-3 py-2"
-              placeholder="Custom Network"
-              required
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium mb-1">Chain ID</label>
-            <input
-              type="number"
-              value={formData.chainId}
-              onChange={(e) => setFormData(prev => ({ ...prev, chainId: e.target.value }))}
-              className="w-full border rounded-md px-3 py-2"
-              placeholder="1234"
-              required
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium mb-1">RPC URL</label>
-            <input
-              type="url"
-              value={formData.rpcUrl}
-              onChange={(e) => setFormData(prev => ({ ...prev, rpcUrl: e.target.value }))}
-              className="w-full border rounded-md px-3 py-2"
-              placeholder="https://rpc.example.com"
-              required
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium mb-1">Currency Symbol</label>
-            <input
-              type="text"
-              value={formData.symbol}
-              onChange={(e) => setFormData(prev => ({ ...prev, symbol: e.target.value }))}
-              className="w-full border rounded-md px-3 py-2"
-              placeholder="ETH"
-              required
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium mb-1">Block Explorer URL (Optional)</label>
-            <input
-              type="url"
-              value={formData.blockExplorer}
-              onChange={(e) => setFormData(prev => ({ ...prev, blockExplorer: e.target.value }))}
-              className="w-full border rounded-md px-3 py-2"
-              placeholder="https://explorer.example.com"
-            />
-          </div>
-          
-          <div className="flex gap-3 pt-4">
-            <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="submit" className="flex-1">
-              Add Network
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-interface NetworkSelectorProps {
-  currentChainId: number;
-  onNetworkSwitch: (chainId: number) => void;
-  onAddCustomNetwork: () => void;
-}
-
-function NetworkSelector({ currentChainId, onNetworkSwitch, onAddCustomNetwork }: NetworkSelectorProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  
-  const currentChain = chains.find(chain => chain.id === currentChainId);
-  
-  return (
-    <div className="relative">
-      <Button
-        variant="outline"
-        onClick={() => setIsOpen(!isOpen)}
-        className="gap-2"
-      >
-        <span className="text-sm font-medium">
-          {currentChain?.name || 'Unknown Network'}
-        </span>
-        <ChevronDownIcon className="w-4 h-4" />
-      </Button>
-      
-      {isOpen && (
-        <div className="absolute top-full left-0 mt-2 z-50 min-w-[220px] rounded-md border bg-popover text-popover-foreground shadow-md">
-          <div className="py-1">
-            {chains.map((chain) => (
-              <button
-                key={chain.id}
-                onClick={() => {
-                  onNetworkSwitch(chain.id);
-                  setIsOpen(false);
-                }}
-                className={cn(
-                  "w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground transition-colors",
-                  currentChainId === chain.id && "bg-accent/60 text-foreground"
-                )}
-              >
-                {chain.name}
-              </button>
-            ))}
-
-            <div className="my-1 border-t" />
-
-            <button
-              onClick={() => {
-                onAddCustomNetwork();
-                setIsOpen(false);
-              }}
-              className="w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground transition-colors flex items-center gap-2 text-primary"
-            >
-              <PlusIcon className="w-4 h-4" />
-              Add Custom Network
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-interface DevFundingButtonProps {
-  walletAddress: string;
-  onNetworkSwitch: (chainId: number) => void;
-}
-
-function DevFundingButton({ walletAddress, onNetworkSwitch }: DevFundingButtonProps) {
-  const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
-
-  const handleFundWallet = async () => {
-    setIsLoading(true);
-
-    try {
-      // First switch to localhost network
-      onNetworkSwitch(localhost.id);
-      
-      // Small delay to allow network switch to complete
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Call the funding API
-      const response = await fetch('/api/dev-fund', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          walletAddress,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to fund wallet');
-      }
-
-      toast({
-        title: "💰 Wallet Funded Successfully!",
-        description: `Sent 100 ETH to your wallet. TX: ${data.transactionHash?.slice(0, 10)}...`,
-        duration: 5000,
-      });
-
-    } catch (error) {
-      console.error('Funding error:', error);
-      toast({
-        title: "❌ Funding Failed",
-        description: error instanceof Error ? error.message : 'Failed to fund wallet',
-        variant: "destructive",
-        duration: 5000,
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Only show in development
-  if (process.env.NODE_ENV !== 'development') {
-    return null;
-  }
-
-  return (
-    <button
-      onClick={handleFundWallet}
-      disabled={isLoading}
-      className={cn(
-        "flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors",
-        "bg-green-600 hover:bg-green-700 text-white",
-        "disabled:opacity-50 disabled:cursor-not-allowed"
-      )}
-      title="Fund wallet with 100 ETH from Anvil (Development only)"
-    >
-      {isLoading ? (
-        <>
-          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-          Funding...
-        </>
-      ) : (
-        <>
-          <BanknotesIcon className="w-4 h-4" />
-          Fund 100 ETH
-        </>
-      )}
-    </button>
-  );
-}
+import { useToast } from '@/hooks/use-toast';
+import {
+  NetworkSelector,
+  CustomNetworkModal,
+  DevFundingButton,
+  WalletButton,
+  NavigationLinks,
+  type CustomNetwork
+} from '@/components/wallet';
 
 export function WalletHeader() {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
   const { switchChain } = useSwitchChain();
   const [showCustomNetworkForm, setShowCustomNetworkForm] = useState(false);
+  const { toast } = useToast();
 
   const handleNetworkSwitch = (newChainId: number) => {
     if (switchChain) {
@@ -290,7 +27,7 @@ export function WalletHeader() {
     }
   };
 
-  const handleAddCustomNetwork = async (network: any) => {
+  const handleAddCustomNetwork = async (network: CustomNetwork) => {
     try {
       // Use window.ethereum to add the network directly to the wallet
       if (typeof window !== 'undefined' && window.ethereum) {
@@ -305,9 +42,21 @@ export function WalletHeader() {
           }],
         });
         setShowCustomNetworkForm(false);
+        toast({
+          title: 'Network added',
+          description: `${network.name} has been added to your wallet.`,
+        } as any);
       }
     } catch (error) {
       console.error('Failed to add custom network:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to add network';
+      toast({
+        title: 'Failed to add network',
+        description: errorMessage.includes('User rejected') || errorMessage.includes('user denied')
+          ? 'Network addition was cancelled.'
+          : 'Failed to add the custom network to your wallet. Please try again.',
+        variant: 'destructive',
+      } as any);
     }
   };
 
@@ -321,12 +70,9 @@ export function WalletHeader() {
                 DAO Deployer
               </Link>
             </div>
-            
+
             <div className="flex items-center gap-3">
-              {/* Deploy CTA should be left of the first wallet UI element */}
-              <Button asChild>
-                <Link href="/deploy">Deploy DAO</Link>
-              </Button>
+              <NavigationLinks />
 
               {isConnected && (
                 <NetworkSelector
@@ -335,105 +81,22 @@ export function WalletHeader() {
                   onAddCustomNetwork={() => setShowCustomNetworkForm(true)}
                 />
               )}
-              
+
               {isConnected && address && (
-                <DevFundingButton 
+                <DevFundingButton
                   walletAddress={address}
                   onNetworkSwitch={handleNetworkSwitch}
                 />
               )}
-              
-              <ConnectButton.Custom>
-                {({
-                  account,
-                  chain,
-                  openAccountModal,
-                  openChainModal,
-                  openConnectModal,
-                  authenticationStatus,
-                  mounted,
-                }) => {
-                  const ready = mounted && authenticationStatus !== 'loading';
-                  const connected =
-                    ready &&
-                    account &&
-                    chain &&
-                    (!authenticationStatus ||
-                      authenticationStatus === 'authenticated');
 
-                  return (
-                    <div
-                      {...(!ready && {
-                        'aria-hidden': true,
-                        style: {
-                          opacity: 0,
-                          pointerEvents: 'none',
-                          userSelect: 'none',
-                        },
-                      })}
-                    >
-                      {(() => {
-                        if (!connected) {
-                          return (
-                            <Button onClick={openConnectModal} type="button">
-                              Connect Wallet
-                            </Button>
-                          );
-                        }
-
-                        if (chain.unsupported) {
-                          return (
-                            <Button variant="destructive" onClick={openChainModal} type="button">
-                              Wrong network
-                            </Button>
-                          );
-                        }
-
-                        return (
-                          <div className="flex items-center gap-2">
-                            <Button variant="outline" onClick={openChainModal} type="button">
-                              {chain.hasIcon && (
-                                <div
-                                  style={{
-                                    background: chain.iconBackground,
-                                    width: 16,
-                                    height: 16,
-                                    borderRadius: 999,
-                                    overflow: 'hidden',
-                                    marginRight: 8,
-                                    display: 'inline-block',
-                                  }}
-                                >
-                                  {chain.iconUrl && (
-                                    <img
-                                      alt={chain.name ?? 'Chain icon'}
-                                      src={chain.iconUrl}
-                                      style={{ width: 16, height: 16 }}
-                                    />
-                                  )}
-                                </div>
-                              )}
-                              {chain.name}
-                            </Button>
-
-                            <Button onClick={openAccountModal} type="button">
-                              {account.displayName}
-                              {account.displayBalance ? ` (${account.displayBalance})` : ''}
-                            </Button>
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  );
-                }}
-              </ConnectButton.Custom>
+              <WalletButton />
             </div>
           </div>
         </div>
       </header>
 
       {showCustomNetworkForm && (
-        <CustomNetworkForm
+        <CustomNetworkModal
           onClose={() => setShowCustomNetworkForm(false)}
           onAdd={handleAddCustomNetwork}
         />

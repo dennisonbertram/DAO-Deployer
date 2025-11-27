@@ -27,7 +27,6 @@ function useFactoryAddress() {
 
   useEffect(() => {
     async function loadAddress() {
-      console.info('[Factory] Resolving factory address', { chainId });
       if (!isSupportedChain(chainId)) {
         setFactoryAddress(undefined);
         setIsLoading(false);
@@ -38,16 +37,13 @@ function useFactoryAddress() {
         if (chainId === localhost.id) {
           // For localhost, use async loading to get dynamic addresses
           const address = await getContractAddressAsync(chainId, 'factory');
-          console.info('[Factory] Loaded local factory address', { address });
           setFactoryAddress(address);
         } else {
           // For other chains, use static configuration
           const address = getContractAddress(chainId, 'factory');
-          console.info('[Factory] Loaded factory address', { address });
           setFactoryAddress(address);
         }
       } catch (error) {
-        console.warn('Failed to load factory address:', error);
         setFactoryAddress(undefined);
       } finally {
         setIsLoading(false);
@@ -78,7 +74,9 @@ export function useAllDAOs() {
     functionName: 'getAllDAOs',
     query: {
       enabled: !!factoryAddress,
-      refetchInterval: 30000, // Refetch every 30 seconds
+      refetchInterval: 60000, // Refetch every minute
+      staleTime: 30000, // Data is fresh for 30 seconds
+      refetchOnWindowFocus: true, // Refetch when user returns to tab
     },
   });
 
@@ -173,31 +171,26 @@ export function useDeployDAO() {
     if (!factoryAddress) return undefined;
     
     return async (config: ContractDAOConfig, recipient: Address) => {
-      console.info('[Factory] Calling writeContract(deployDAO)', {
-        factoryAddress,
-        chainId,
-        account,
-        recipient,
-      });
       let nonce: number | undefined = undefined;
       try {
         if (account && publicClient) {
-          nonce = await publicClient.getTransactionCount({ address: account as any, blockTag: 'pending' });
-          console.info('[Factory] Using on-chain pending nonce', { nonce });
+          nonce = await publicClient.getTransactionCount({ address: account, blockTag: 'pending' });
         }
       } catch (e) {
-        console.warn('[Factory] Failed to fetch pending nonce, letting wallet set it');
+        // Failed to fetch pending nonce - wallet will set it automatically
       }
+      // Wagmi's writeContract has overly strict type inference from the ABI
+      // The types are correct at runtime, but TS can't infer the exact match
       writeContract({
         address: factoryAddress,
         abi: FACTORY_ABI,
         functionName: 'deployDAO',
-        args: [config, recipient],
+        args: [config, recipient] as readonly [ContractDAOConfig, Address],
         gas: GAS_LIMITS.DEPLOY_DAO,
         chainId,
         account,
         nonce,
-      } as any);
+      } as Parameters<typeof writeContract>[0]);
     };
   }, [factoryAddress, writeContract, chainId, account, publicClient]);
 
@@ -215,7 +208,7 @@ export function useDeployDAO() {
 /**
  * Hook for watching DAO deployment events
  */
-export function useWatchDAODeployments(onDAODeployed?: (event: any) => void) {
+export function useWatchDAODeployments(onDAODeployed?: (event: unknown) => void) {
   const { factoryAddress } = useFactoryAddress();
 
   useWatchContractEvent({
@@ -250,8 +243,7 @@ export function useFactory() {
   } = useDeployDAO();
 
   // Watch for new deployments and refetch data when they occur
-  useWatchDAODeployments((event) => {
-    console.log('New DAO deployed:', event);
+  useWatchDAODeployments(() => {
     // Refetch data when a new DAO is deployed
     setTimeout(() => {
       refetchAllDAOs();
@@ -289,6 +281,30 @@ export function useFactoryStats() {
   const { count: totalCount } = useDAOCount();
   const { daos: allDAOs, isLoading } = useAllDAOs();
 
+  // Memoize deployment trend calculations separately for better performance
+  const deploymentTrend = useMemo(() => {
+    if (!allDAOs.length) return [];
+
+    const monthAgo = BigInt(Math.floor(Date.now() / 1000) - 30 * 24 * 60 * 60);
+    const monthlyDeployments = allDAOs.filter(dao => dao.timestamp > monthAgo);
+
+    const trend = [];
+    for (let i = 3; i >= 0; i--) {
+      const weekStart = BigInt(Math.floor(Date.now() / 1000) - (i + 1) * 7 * 24 * 60 * 60);
+      const weekEnd = BigInt(Math.floor(Date.now() / 1000) - i * 7 * 24 * 60 * 60);
+      const weekDeployments = monthlyDeployments.filter(
+        dao => dao.timestamp >= weekStart && dao.timestamp < weekEnd
+      );
+
+      trend.push({
+        week: `Week ${4 - i}`,
+        count: weekDeployments.length,
+        timestamp: Number(weekStart),
+      });
+    }
+    return trend;
+  }, [allDAOs]);
+
   const stats = useMemo(() => {
     if (!allDAOs.length) {
       return {
@@ -314,32 +330,13 @@ export function useFactoryStats() {
       .slice(0, 5)
       .map(([address, count]) => ({ address, count }));
 
-    // Calculate deployment trend (last 30 days, by week)
-    const monthAgo = BigInt(Math.floor(Date.now() / 1000) - 30 * 24 * 60 * 60);
-    const monthlyDeployments = allDAOs.filter(dao => dao.timestamp > monthAgo);
-    
-    const deploymentTrend = [];
-    for (let i = 3; i >= 0; i--) {
-      const weekStart = BigInt(Math.floor(Date.now() / 1000) - (i + 1) * 7 * 24 * 60 * 60);
-      const weekEnd = BigInt(Math.floor(Date.now() / 1000) - i * 7 * 24 * 60 * 60);
-      const weekDeployments = monthlyDeployments.filter(
-        dao => dao.timestamp >= weekStart && dao.timestamp < weekEnd
-      );
-      
-      deploymentTrend.push({
-        week: `Week ${4 - i}`,
-        count: weekDeployments.length,
-        timestamp: Number(weekStart),
-      });
-    }
-
     return {
       totalDAOs: totalCount,
       recentDeployments: recentDeployments.length,
       topDeployers,
       deploymentTrend,
     };
-  }, [allDAOs, totalCount]);
+  }, [allDAOs, totalCount, deploymentTrend]);
 
   return {
     stats,

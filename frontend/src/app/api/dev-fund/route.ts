@@ -80,8 +80,6 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Error funding wallet:', error);
-    
     // Provide more specific error messages
     let errorMessage = 'Failed to fund wallet';
     

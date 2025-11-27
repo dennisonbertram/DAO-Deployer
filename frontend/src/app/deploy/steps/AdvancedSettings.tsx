@@ -3,7 +3,7 @@
 import { DAOConfig, ValidationError, SUPPORTED_NETWORKS, NetworkId } from '@/types/deploy';
 import { validateAdvancedSettings } from '@/lib/validation/deploy';
 import FormField from '@/components/deploy/FormField';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback, memo } from 'react';
 
 interface AdvancedSettingsProps {
   config: Partial<DAOConfig>;
@@ -11,39 +11,52 @@ interface AdvancedSettingsProps {
   onValidation: (errors: ValidationError[]) => void;
 }
 
-export default function AdvancedSettings({ config, onUpdate, onValidation }: AdvancedSettingsProps) {
+function AdvancedSettings({ config, onUpdate, onValidation }: AdvancedSettingsProps) {
   const [errors, setErrors] = useState<ValidationError[]>([]);
 
+  // Memoize validation results
+  const validationErrors = useMemo(() => {
+    return validateAdvancedSettings(config);
+  }, [config]);
+
   useEffect(() => {
-    const newErrors = validateAdvancedSettings(config);
-    setErrors(newErrors);
-    onValidation(newErrors);
-  }, [config, onValidation]);
+    setErrors(validationErrors);
+    onValidation(validationErrors);
+  }, [validationErrors, onValidation]);
 
-  const getError = (field: keyof DAOConfig) => {
+  const getError = useCallback((field: keyof DAOConfig) => {
     return errors.find(error => error.field === field)?.message;
-  };
+  }, [errors]);
 
-  const handleInputChange = (field: keyof DAOConfig, value: string | boolean) => {
+  const handleInputChange = useCallback((field: keyof DAOConfig, value: string | boolean) => {
     onUpdate({ [field]: value });
-  };
+  }, [onUpdate]);
 
-  const selectedNetwork = SUPPORTED_NETWORKS.find(n => n.id === config.network);
+  const selectedNetwork = useMemo(() =>
+    SUPPORTED_NETWORKS.find(n => n.id === config.network),
+    [config.network]
+  );
 
-  // Check if we're in development environment
-  const isDevelopment = process.env.NODE_ENV === 'development' || 
-                       typeof window !== 'undefined' && 
-                       (window.location.hostname === 'localhost' || 
-                        window.location.hostname === '127.0.0.1');
+  // Memoize development environment check
+  const isDevelopment = useMemo(() =>
+    process.env.NODE_ENV === 'development' ||
+    typeof window !== 'undefined' &&
+    (window.location.hostname === 'localhost' ||
+     window.location.hostname === '127.0.0.1'),
+    []
+  );
 
-  // Filter networks based on environment
-  const availableNetworks = SUPPORTED_NETWORKS.filter(network => {
-    // If it's a development-only network, only show in development
-    if (network.developmentOnly) {
-      return isDevelopment;
-    }
-    return true;
-  });
+  // Memoize available networks based on environment
+  const availableNetworks = useMemo(() =>
+    SUPPORTED_NETWORKS.filter(network => {
+      // If it's a development-only network, only show in development
+      if (network.developmentOnly) {
+        return isDevelopment;
+      }
+      return true;
+    }),
+    [isDevelopment]
+  );
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -126,7 +139,7 @@ export default function AdvancedSettings({ config, onUpdate, onValidation }: Adv
                   name="gasOptimization"
                   value={option.id}
                   checked={config.gasOptimization === option.id}
-                  onChange={(e) => handleInputChange('gasOptimization', e.target.value as any)}
+                  onChange={(e) => handleInputChange('gasOptimization', e.target.value)}
                   className="mt-1"
                 />
                 <div className="ml-3">
@@ -252,3 +265,6 @@ export default function AdvancedSettings({ config, onUpdate, onValidation }: Adv
     </div>
   );
 }
+
+// Wrap component in React.memo to prevent unnecessary re-renders
+export default memo(AdvancedSettings);

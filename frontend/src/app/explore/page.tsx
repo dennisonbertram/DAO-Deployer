@@ -1,54 +1,64 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import Link from 'next/link'
+import type { Route } from 'next'
+import { useChainId } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { LoadingCard } from '@/components/ui/loading-card'
 import { EmptyState } from '@/components/ui/empty-state'
+import { Input } from '@/components/ui/input'
+import { useAllDAOs } from '@/hooks/contracts/useFactory'
+import { DeployedDAO } from '@/lib/contracts/types'
+import { chains } from '@/lib/wagmi'
+import { PageErrorBoundary } from '@/components/PageErrorBoundary'
 
-// Mock DAO data structure
-interface DAO {
-  id: string
-  name: string
-  description: string
-  tokenSymbol: string
-  totalSupply: string
-  totalProposals: number
-  activeProposals: number
-  network: string
-  deployedAt: string
+// Utility function to format addresses
+function formatAddress(address: string): string {
+  return `${address.slice(0, 6)}...${address.slice(-4)}`
 }
 
-export default function ExplorePage() {
-  const [daos, setDaos] = useState<DAO[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+// Utility function to get block explorer URL
+function getBlockExplorerUrl(chainId: number, address: string): string | undefined {
+  const chain = chains.find(c => c.id === chainId)
+  if (!chain || !('blockExplorers' in chain) || !chain.blockExplorers?.default?.url) {
+    return undefined
+  }
+  return `${chain.blockExplorers.default.url}/address/${address}`
+}
 
-  useEffect(() => {
-    // Simulate API call to fetch DAOs
-    const fetchDAOs = async () => {
-      setLoading(true)
-      try {
-        // Simulate network delay
-        await new Promise(resolve => setTimeout(resolve, 2000))
-        
-        // For now, return empty array to show empty state
-        // In real implementation, this would fetch from API
-        const mockDAOs: DAO[] = []
-        
-        setDaos(mockDAOs)
-      } catch (err) {
-        setError('Failed to load DAOs')
-      } finally {
-        setLoading(false)
-      }
-    }
+// Utility function to format timestamp
+function formatDate(timestamp: bigint): string {
+  const date = new Date(Number(timestamp) * 1000)
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
 
-    fetchDAOs()
-  }, [])
+function ExplorePageContent() {
+  const { daos, isLoading, isError, error, refetch } = useAllDAOs()
+  const chainId = useChainId()
+  const [searchQuery, setSearchQuery] = useState('')
 
-  if (loading) {
+  // Filter DAOs based on search query
+  const filteredDAOs = useMemo(() => {
+    if (!searchQuery.trim()) return daos
+
+    const query = searchQuery.toLowerCase()
+    return daos.filter((dao: DeployedDAO) =>
+      dao.name.toLowerCase().includes(query) ||
+      dao.token.toLowerCase().includes(query) ||
+      dao.governor.toLowerCase().includes(query) ||
+      dao.deployer.toLowerCase().includes(query)
+    )
+  }, [daos, searchQuery])
+
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background to-secondary/20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
@@ -71,13 +81,13 @@ export default function ExplorePage() {
     )
   }
 
-  if (error) {
+  if (isError) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background to-secondary/20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
           <EmptyState
             title="Failed to Load DAOs"
-            description={error}
+            description={error?.message || 'An error occurred while loading DAOs'}
             icon={
               <svg className="w-12 h-12 text-tally-red-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -85,7 +95,7 @@ export default function ExplorePage() {
             }
             action={{
               label: "Try Again",
-              onClick: () => window.location.reload()
+              onClick: () => refetch()
             }}
           />
         </div>
@@ -134,51 +144,151 @@ export default function ExplorePage() {
             Explore DAOs
           </h1>
           <p className="text-lg leading-8 text-muted-foreground max-w-2xl mx-auto">
-            Discover and interact with {daos.length} sovereign DAOs deployed across various networks
+            Discover and interact with {daos.length} sovereign DAO{daos.length !== 1 ? 's' : ''} deployed on this network
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-tally-6">
-          {daos.map((dao) => (
-            <Card key={dao.id} className="rounded-tally-container border-tally-gray-3 hover:border-tally-gray-4 transition-colors">
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <span>{dao.name}</span>
-                  <span className="text-sm font-mono bg-tally-gray-2 px-2 py-1 rounded-tally-tag">
-                    {dao.tokenSymbol}
-                  </span>
-                </CardTitle>
-                <CardDescription className="line-clamp-2">
-                  {dao.description}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-tally-3 mb-tally-6">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-tally-gray-6">Total Supply</span>
-                    <span className="font-medium">{dao.totalSupply}</span>
+        {/* Search Bar */}
+        {daos.length > 0 && (
+          <div className="max-w-2xl mx-auto mb-tally-9">
+            <div className="relative">
+              <svg
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-tally-gray-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <Input
+                type="text"
+                placeholder="Search by name or address..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 rounded-tally-input"
+              />
+            </div>
+            {searchQuery && (
+              <p className="text-sm text-tally-gray-6 mt-2">
+                Found {filteredDAOs.length} result{filteredDAOs.length !== 1 ? 's' : ''}
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* DAO Cards */}
+        {filteredDAOs.length === 0 && searchQuery ? (
+          <div className="max-w-2xl mx-auto">
+            <EmptyState
+              title="No DAOs Found"
+              description="No DAOs match your search query. Try adjusting your search terms."
+              icon={
+                <svg className="w-12 h-12 text-tally-gray-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              }
+              action={{
+                label: "Clear Search",
+                onClick: () => setSearchQuery('')
+              }}
+            />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-tally-6">
+            {filteredDAOs.map((dao: DeployedDAO) => (
+              <Card key={dao.token} className="rounded-tally-container border-tally-gray-3 hover:border-tally-gray-4 transition-colors">
+                <CardHeader>
+                  <CardTitle className="text-lg">
+                    {dao.name}
+                  </CardTitle>
+                  <CardDescription className="text-xs font-mono">
+                    Deployed {formatDate(dao.timestamp)}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-tally-3 mb-tally-6">
+                    <div className="text-sm">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-tally-gray-6">Token</span>
+                        {getBlockExplorerUrl(chainId, dao.token) ? (
+                          <a
+                            href={getBlockExplorerUrl(chainId, dao.token)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-mono text-xs text-tally-blue-6 hover:text-tally-blue-7 hover:underline"
+                          >
+                            {formatAddress(dao.token)}
+                          </a>
+                        ) : (
+                          <span className="font-mono text-xs text-tally-gray-6">
+                            {formatAddress(dao.token)}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-tally-gray-6">Governor</span>
+                        {getBlockExplorerUrl(chainId, dao.governor) ? (
+                          <a
+                            href={getBlockExplorerUrl(chainId, dao.governor)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-mono text-xs text-tally-blue-6 hover:text-tally-blue-7 hover:underline"
+                          >
+                            {formatAddress(dao.governor)}
+                          </a>
+                        ) : (
+                          <span className="font-mono text-xs text-tally-gray-6">
+                            {formatAddress(dao.governor)}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-tally-gray-6">Timelock</span>
+                        {getBlockExplorerUrl(chainId, dao.timelock) ? (
+                          <a
+                            href={getBlockExplorerUrl(chainId, dao.timelock)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-mono text-xs text-tally-blue-6 hover:text-tally-blue-7 hover:underline"
+                          >
+                            {formatAddress(dao.timelock)}
+                          </a>
+                        ) : (
+                          <span className="font-mono text-xs text-tally-gray-6">
+                            {formatAddress(dao.timelock)}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-tally-gray-6">Deployer</span>
+                        {getBlockExplorerUrl(chainId, dao.deployer) ? (
+                          <a
+                            href={getBlockExplorerUrl(chainId, dao.deployer)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-mono text-xs text-tally-blue-6 hover:text-tally-blue-7 hover:underline"
+                          >
+                            {formatAddress(dao.deployer)}
+                          </a>
+                        ) : (
+                          <span className="font-mono text-xs text-tally-gray-6">
+                            {formatAddress(dao.deployer)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-tally-gray-6">Proposals</span>
-                    <span className="font-medium">
-                      {dao.activeProposals} active / {dao.totalProposals} total
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-tally-gray-6">Network</span>
-                    <span className="font-medium capitalize">{dao.network}</span>
-                  </div>
-                </div>
-                
-                <Button asChild className="w-full rounded-tally-button">
-                  <Link href={`/dao/${dao.id}` as any}>
-                    View DAO
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+
+                  <Button asChild className="w-full rounded-tally-button">
+                    <Link href={`/dao/${dao.governor}` as Route}>
+                      View DAO
+                    </Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
 
         <div className="text-center mt-tally-15">
           <Button asChild variant="outline" size="lg" className="rounded-tally-button">
@@ -190,4 +300,12 @@ export default function ExplorePage() {
       </div>
     </div>
   )
+}
+
+export default function ExplorePage() {
+  return (
+    <PageErrorBoundary>
+      <ExplorePageContent />
+    </PageErrorBoundary>
+  );
 }

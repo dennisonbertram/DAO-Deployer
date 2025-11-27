@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import { WalletProvider } from '@/providers/WalletProvider'
 import { WalletHeader } from '@/components/WalletHeader'
 import { Toaster } from '@/components/ui/toaster'
+import { ClientLayout } from '@/components/ClientLayout'
 
 const dmSans = DM_Sans({ 
   subsets: ['latin'],
@@ -38,20 +39,22 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={cn('min-h-screen bg-background font-sans antialiased', dmSans.variable, inter.variable)}>
         <WalletProvider>
-          <WalletHeader />
-          <main className="min-h-screen">
-            {children}
-          </main>
-          <footer className="border-t border-gray-200 dark:border-gray-800">
-            <div className="mx-auto max-w-5xl px-6 py-6 flex items-center justify-between text-sm text-muted-foreground">
-              <p className="m-0">© {new Date().getFullYear()} DAO Deployer</p>
-              <nav className="flex items-center gap-4">
-                <Link href="/terms" className="hover:text-foreground underline underline-offset-4">Terms</Link>
-                <Link href="/privacy" className="hover:text-foreground underline underline-offset-4">Privacy</Link>
-              </nav>
-            </div>
-          </footer>
-          <Toaster />
+          <ClientLayout>
+            <WalletHeader />
+            <main className="min-h-screen">
+              {children}
+            </main>
+            <footer className="border-t border-gray-200 dark:border-gray-800">
+              <div className="mx-auto max-w-5xl px-6 py-6 flex items-center justify-between text-sm text-muted-foreground">
+                <p className="m-0">© {new Date().getFullYear()} DAO Deployer</p>
+                <nav className="flex items-center gap-4">
+                  <Link href="/terms" className="hover:text-foreground underline underline-offset-4">Terms</Link>
+                  <Link href="/privacy" className="hover:text-foreground underline underline-offset-4">Privacy</Link>
+                </nav>
+              </div>
+            </footer>
+            <Toaster />
+          </ClientLayout>
         </WalletProvider>
       </body>
     </html>

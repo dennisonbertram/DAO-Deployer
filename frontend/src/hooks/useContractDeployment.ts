@@ -4,6 +4,7 @@
 import { useState, useCallback } from 'react';
 import { useAccount, useChainId } from 'wagmi';
 import { Address } from 'viem';
+import { validateRpcUrl } from '@/lib/validation/deploy';
 
 interface NetworkInfo {
   chainId: number;
@@ -69,7 +70,6 @@ export function useContractDeployment() {
       const result = await response.json();
       return result.isDeployed || false;
     } catch (error) {
-      console.error('Error checking existing deployment:', error);
       return false;
     }
   }, []);
@@ -188,19 +188,27 @@ export function useContractDeployment() {
     if (!networkInfo.chainId || networkInfo.chainId <= 0) {
       return false;
     }
-    
+
     if (!networkInfo.name || networkInfo.name.trim() === '') {
       return false;
     }
-    
+
     if (!networkInfo.rpcUrls?.default?.http?.[0]) {
       return false;
     }
-    
+
+    // Validate RPC URL format
+    const rpcUrl = networkInfo.rpcUrls.default.http[0];
+    const rpcValidation = validateRpcUrl(rpcUrl, true); // Allow HTTP for localhost
+    if (!rpcValidation.isValid) {
+      console.error('Invalid RPC URL:', rpcValidation.error);
+      return false;
+    }
+
     if (!networkInfo.nativeCurrency?.symbol) {
       return false;
     }
-    
+
     return true;
   }, []);
 

@@ -3,7 +3,7 @@
 import { DAOConfig, ValidationError, GOVERNANCE_PRESETS, PresetId, SUPPORTED_NETWORKS } from '@/types/deploy';
 import { validateGovernanceParams, formatTime, formatTimeFromSeconds } from '@/lib/validation/deploy';
 import FormField from '@/components/deploy/FormField';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback, memo } from 'react';
 
 interface GovernanceParamsProps {
   config: Partial<DAOConfig>;
@@ -11,31 +11,39 @@ interface GovernanceParamsProps {
   onValidation: (errors: ValidationError[]) => void;
 }
 
-export default function GovernanceParams({ config, onUpdate, onValidation }: GovernanceParamsProps) {
+function GovernanceParams({ config, onUpdate, onValidation }: GovernanceParamsProps) {
   const [errors, setErrors] = useState<ValidationError[]>([]);
   const [selectedPreset, setSelectedPreset] = useState<PresetId | 'custom'>('custom');
 
-  const currentNetwork = SUPPORTED_NETWORKS.find(n => n.id === config.network) || SUPPORTED_NETWORKS[0];
+  // Memoize network lookup and blockTime
+  const currentNetwork = useMemo(() =>
+    SUPPORTED_NETWORKS.find(n => n.id === config.network) || SUPPORTED_NETWORKS[0],
+    [config.network]
+  );
   const blockTime = currentNetwork.blockTime;
 
+  // Memoize validation results
+  const validationErrors = useMemo(() => {
+    return validateGovernanceParams(config);
+  }, [config]);
+
   useEffect(() => {
-    const newErrors = validateGovernanceParams(config);
-    setErrors(newErrors);
-    onValidation(newErrors);
-  }, [config, onValidation]);
+    setErrors(validationErrors);
+    onValidation(validationErrors);
+  }, [validationErrors, onValidation]);
 
-  const getError = (field: keyof DAOConfig) => {
+  const getError = useCallback((field: keyof DAOConfig) => {
     return errors.find(error => error.field === field)?.message;
-  };
+  }, [errors]);
 
-  const handleInputChange = (field: keyof DAOConfig, value: string | number) => {
+  const handleInputChange = useCallback((field: keyof DAOConfig, value: string | number) => {
     onUpdate({ [field]: value });
     if (selectedPreset !== 'custom') {
       setSelectedPreset('custom');
     }
-  };
+  }, [onUpdate, selectedPreset]);
 
-  const handlePresetChange = (presetId: PresetId | 'custom') => {
+  const handlePresetChange = useCallback((presetId: PresetId | 'custom') => {
     setSelectedPreset(presetId);
     if (presetId !== 'custom') {
       const preset = GOVERNANCE_PRESETS[presetId];
@@ -47,7 +55,7 @@ export default function GovernanceParams({ config, onUpdate, onValidation }: Gov
         timelockDelay: preset.timelockDelay,
       });
     }
-  };
+  }, [onUpdate]);
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -295,3 +303,6 @@ export default function GovernanceParams({ config, onUpdate, onValidation }: Gov
     </div>
   );
 }
+
+// Wrap component in React.memo to prevent unnecessary re-renders
+export default memo(GovernanceParams);

@@ -1,6 +1,6 @@
 'use client'
 
-import { ReactNode } from 'react';
+import { ReactNode, memo } from 'react';
 import { Label } from '@/components/ui/label';
 import { HelpCircle, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -14,13 +14,13 @@ interface FormFieldProps {
   tooltip?: string;
 }
 
-export default function FormField({ 
-  label, 
-  description, 
-  error, 
-  required = false, 
+function FormField({
+  label,
+  description,
+  error,
+  required = false,
   children,
-  tooltip 
+  tooltip
 }: FormFieldProps) {
   return (
     <div className="space-y-2">
@@ -55,3 +55,6 @@ export default function FormField({
     </div>
   );
 }
+
+// Wrap component in React.memo to prevent unnecessary re-renders when props haven't changed
+export default memo(FormField);
