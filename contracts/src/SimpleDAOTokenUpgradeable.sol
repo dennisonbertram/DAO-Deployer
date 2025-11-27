@@ -53,7 +53,7 @@ contract SimpleDAOTokenUpgradeable is
         __Ownable_init(owner);
         __ERC20Permit_init(name);
         __ERC20Votes_init();
-        __UUPSUpgradeable_init();
+        // Note: UUPSUpgradeable doesn't require initialization in OZ v5
         
         upgradeAuthority = _upgradeAuthority;
         

@@ -36,7 +36,7 @@ contract SimpleDAOTimelockUpgradeable is
         address admin
     ) public virtual override initializer {
         __TimelockController_init(minDelay, proposers, executors, admin);
-        __UUPSUpgradeable_init();
+        // Note: UUPSUpgradeable doesn't require initialization in OZ v5
     }
 
     /**
