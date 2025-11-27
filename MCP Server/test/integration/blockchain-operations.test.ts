@@ -438,8 +438,11 @@ describe('Blockchain Operations with Anvil', () => {
         address: TEST_ACCOUNTS.deployer.address as `0x${string}`,
       });
 
-      await sendEth(walletClient, TEST_ACCOUNTS.user1.address as `0x${string}`, '0.01');
-      
+      const hash = await sendEth(walletClient, TEST_ACCOUNTS.user1.address as `0x${string}`, '0.01');
+
+      // Wait for transaction to be mined before checking nonce
+      await waitForTransaction(publicClient, hash);
+
       const nonce2 = await publicClient.getTransactionCount({
         address: TEST_ACCOUNTS.deployer.address as `0x${string}`,
       });
