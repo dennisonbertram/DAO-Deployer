@@ -67,7 +67,7 @@ contract SimpleDAOGovernorUpgradeable is
         __GovernorVotes_init(token);
         __GovernorVotesQuorumFraction_init(quorumPercentage);
         __GovernorTimelockControl_init(timelock);
-        __UUPSUpgradeable_init();
+        // Note: UUPSUpgradeable doesn't require initialization in OZ v5
         
         upgradeAuthority = _upgradeAuthority;
     }
