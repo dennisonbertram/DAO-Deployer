@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useContractDeployment } from '@/hooks/useContractDeployment';
+import { PageErrorBoundary } from '@/components/PageErrorBoundary';
 
 interface NetworkInfo {
   chainId: number;
@@ -30,7 +31,7 @@ interface NetworkInfo {
   };
 }
 
-export default function AdminPage() {
+function AdminPageContent() {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
   const { switchChain } = useSwitchChain();
@@ -58,79 +59,10 @@ export default function AdminPage() {
   const [hasExistingDeployment, setHasExistingDeployment] = useState(false);
   const [testnetOnlyMode, setTestnetOnlyMode] = useState(true); // Default to safe mode
 
-  // Apply visual feedback when testnet-only mode is active
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const modifyNetworkOptions = () => {
-      // Find all network option buttons in RainbowKit
-      const networkButtons = document.querySelectorAll('[data-rk] button');
-      
-      networkButtons.forEach((button) => {
-        const buttonElement = button as HTMLElement;
-        const textContent = buttonElement.textContent || '';
-        
-        // Define mainnet networks to gray out
-        const isMainnet = (
-          (textContent.includes('Ethereum') && !textContent.includes('Sepolia') && !textContent.includes('Goerli')) ||
-          (textContent.includes('Polygon') && !textContent.includes('Mumbai')) ||
-          textContent.includes('Arbitrum One') ||
-          textContent.includes('OP Mainnet') ||
-          (textContent.includes('Base') && !textContent.includes('Goerli')) ||
-          (textContent.includes('Avalanche') && !textContent.includes('Fuji')) ||
-          (textContent.includes('Fantom') && !textContent.includes('Testnet')) ||
-          (textContent.includes('BNB') && !textContent.includes('Testnet'))
-        );
-        
-        if (testnetOnlyMode && isMainnet) {
-          buttonElement.style.opacity = '0.4';
-          buttonElement.style.pointerEvents = 'none';
-          buttonElement.style.position = 'relative';
-          
-          // Add blocked indicator if not already present
-          if (!buttonElement.querySelector('.blocked-indicator')) {
-            const indicator = document.createElement('span');
-            indicator.className = 'blocked-indicator';
-            indicator.textContent = '🚫';
-            indicator.style.position = 'absolute';
-            indicator.style.right = '8px';
-            indicator.style.top = '50%';
-            indicator.style.transform = 'translateY(-50%)';
-            indicator.style.fontSize = '12px';
-            buttonElement.appendChild(indicator);
-          }
-        } else {
-          // Reset styles when not in testnet-only mode
-          buttonElement.style.opacity = '';
-          buttonElement.style.pointerEvents = '';
-          buttonElement.style.position = '';
-          
-          // Remove blocked indicator
-          const indicator = buttonElement.querySelector('.blocked-indicator');
-          if (indicator) {
-            indicator.remove();
-          }
-        }
-      });
-    };
-
-    // Apply immediately
-    modifyNetworkOptions();
-    
-    // Set up observer for dynamic content changes
-    const observer = new MutationObserver(() => {
-      modifyNetworkOptions();
-    });
-    
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true
-    });
-    
-    return () => {
-      observer.disconnect();
-    };
-  }, [testnetOnlyMode]);
+  // Note: RainbowKit network switching is now controlled by the testnet-only mode check
+  // in the handleDeploy function rather than through DOM manipulation.
+  // Users can still switch networks in their wallet, but deployment will be blocked
+  // for mainnet networks when testnet-only mode is enabled.
 
   // Get network information from connected wallet
   useEffect(() => {
@@ -208,7 +140,6 @@ export default function AdminPage() {
             });
           }
         } catch (error) {
-          console.error('Error getting network info:', error);
           toast({
             title: 'Error',
             description: 'Failed to get network information',
@@ -335,7 +266,7 @@ export default function AdminPage() {
     }
   };
 
-  const handleNetworkInfoChange = (field: keyof NetworkInfo, value: any) => {
+  const handleNetworkInfoChange = (field: keyof NetworkInfo, value: unknown) => {
     setCustomNetworkInfo(prev => ({
       ...prev,
       [field]: value,
@@ -702,5 +633,13 @@ export default function AdminPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+export default function AdminPage() {
+  return (
+    <PageErrorBoundary>
+      <AdminPageContent />
+    </PageErrorBoundary>
   );
 }

@@ -19,20 +19,57 @@ export function useTransactionHandler() {
       try {
         setTxState({ status: 'pending' });
         const hash = await txFunction();
-        setTxState({ 
-          status: 'success', 
+        setTxState({
+          status: 'success',
           hash,
-          confirmations: 0 
+          confirmations: 0
         });
         return hash;
       } catch (error) {
-        const errorMessage = error instanceof Error 
-          ? error.message 
-          : 'Transaction failed';
-        
-        setTxState({ 
-          status: 'error', 
-          error: errorMessage 
+        // Parse error into user-friendly message
+        let errorMessage = 'Transaction failed';
+
+        if (error instanceof Error) {
+          const errMsg = error.message.toLowerCase();
+
+          // User rejected the transaction
+          if (errMsg.includes('user rejected') || errMsg.includes('user denied')) {
+            errorMessage = 'Transaction was cancelled';
+          }
+          // Insufficient funds
+          else if (errMsg.includes('insufficient funds') || errMsg.includes('insufficient balance')) {
+            errorMessage = 'Insufficient funds to complete the transaction';
+          }
+          // Gas estimation failed
+          else if (errMsg.includes('gas') && (errMsg.includes('estimate') || errMsg.includes('estimation'))) {
+            errorMessage = 'Unable to estimate gas. The transaction may fail or the contract may have restrictions.';
+          }
+          // Network/RPC errors
+          else if (errMsg.includes('network') || errMsg.includes('rpc') || errMsg.includes('connection')) {
+            errorMessage = 'Network connection error. Please check your connection and try again.';
+          }
+          // Nonce too low
+          else if (errMsg.includes('nonce')) {
+            errorMessage = 'Transaction nonce error. Please try again.';
+          }
+          // Contract revert with reason
+          else if (errMsg.includes('revert')) {
+            const reasonMatch = error.message.match(/reason[:\s]+["']?([^"']+)["']?/i);
+            if (reasonMatch && reasonMatch[1]) {
+              errorMessage = `Transaction failed: ${reasonMatch[1]}`;
+            } else {
+              errorMessage = 'Transaction reverted. The operation was rejected by the contract.';
+            }
+          }
+          // Default to original error message if no pattern matched
+          else {
+            errorMessage = error.message;
+          }
+        }
+
+        setTxState({
+          status: 'error',
+          error: errorMessage
         });
         throw error;
       }
@@ -121,7 +158,7 @@ export function useTransactionMonitor(hash?: Hash) {
  * Hook for parsing contract errors into user-friendly messages
  */
 export function useContractErrorHandler() {
-  const parseError = useCallback((error: any): ContractError => {
+  const parseError = useCallback((error: unknown): ContractError => {
     if (!error) {
       return {
         name: 'Unknown Error',
@@ -129,31 +166,41 @@ export function useContractErrorHandler() {
       };
     }
 
-    // Handle different error types
-    if (error.name === 'ContractFunctionRevertedError') {
+    // Type guard to check if error is an object with expected properties
+    if (typeof error !== 'object') {
       return {
-        name: error.name,
-        message: error.reason || 'Contract function reverted',
-        code: error.code,
-        data: error.data,
+        name: 'Unknown Error',
+        message: String(error),
       };
     }
 
-    if (error.name === 'UserRejectedRequestError') {
+    const errorObj = error as Record<string, unknown>;
+
+    // Handle different error types
+    if (errorObj.name === 'ContractFunctionRevertedError') {
+      return {
+        name: String(errorObj.name),
+        message: typeof errorObj.reason === 'string' ? errorObj.reason : 'Contract function reverted',
+        code: typeof errorObj.code === 'string' ? errorObj.code : undefined,
+        data: errorObj.data,
+      };
+    }
+
+    if (errorObj.name === 'UserRejectedRequestError') {
       return {
         name: 'User Rejected',
         message: 'Transaction was rejected by the user',
       };
     }
 
-    if (error.name === 'InsufficientFundsError') {
+    if (errorObj.name === 'InsufficientFundsError') {
       return {
         name: 'Insufficient Funds',
         message: 'Insufficient funds to complete the transaction',
       };
     }
 
-    if (error.name === 'GasEstimationError') {
+    if (errorObj.name === 'GasEstimationError') {
       return {
         name: 'Gas Estimation Failed',
         message: 'Unable to estimate gas for this transaction',
@@ -162,9 +209,9 @@ export function useContractErrorHandler() {
 
     // Default error handling
     return {
-      name: error.name || 'Transaction Error',
-      message: error.message || 'Transaction failed',
-      code: error.code,
+      name: typeof errorObj.name === 'string' ? errorObj.name : 'Transaction Error',
+      message: typeof errorObj.message === 'string' ? errorObj.message : 'Transaction failed',
+      code: typeof errorObj.code === 'string' ? errorObj.code : undefined,
     };
   }, []);
 

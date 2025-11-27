@@ -1,74 +1,102 @@
 'use client'
 
-import { DAOConfig, ValidationError, SUPPORTED_NETWORKS, GasEstimate, DeploymentStatus } from '@/types/deploy';
+import { DAOConfig, ValidationError, SUPPORTED_NETWORKS } from '@/types/deploy';
 import { validateComplete, formatTime, formatTimeFromSeconds } from '@/lib/validation/deploy';
 import { useState, useEffect } from 'react';
 import { useAccount } from 'wagmi';
 import { Address, getAddress, isAddress } from 'viem';
 import { useToast } from '@/hooks/use-toast';
+import { useDeployment } from '@/contexts/DeploymentContext';
 
 interface ReviewDeployProps {
-  config: DAOConfig;
   onValidation: (errors: ValidationError[]) => void;
   onDeploy: () => void;
-  gasEstimate?: GasEstimate;
-  deploymentStatus: DeploymentStatus;
-  // Factory hooks passed from parent
-  deployDAO?: (config: any, recipient: Address) => void;
-  isSupported: boolean;
-  isDeploying: boolean;
-  deployError: boolean;
-  deployErrorDetails: any;
 }
 
-export default function ReviewDeploy({ 
-  config, 
-  onValidation, 
-  onDeploy, 
-  gasEstimate,
-  deploymentStatus,
-  deployDAO,
-  isSupported,
-  isDeploying,
-  deployError,
-  deployErrorDetails
+export default function ReviewDeploy({
+  onValidation,
+  onDeploy,
 }: ReviewDeployProps) {
+  // Get all deployment state from context
+  const {
+    config,
+    gasEstimate,
+    deploymentStatus,
+    deployDAO,
+    isSupported,
+    isDeploying,
+    deployError,
+    deployErrorDetails,
+  } = useDeployment();
   const [errors, setErrors] = useState<ValidationError[]>([]);
   const [tosAccepted, setTosAccepted] = useState(false);
   const [understandsIrreversible, setUnderstandsIrreversible] = useState(false);
   const { toast } = useToast();
 
   const selectedNetwork = SUPPORTED_NETWORKS.find(n => n.id === config.network);
-  
+
   // Get current account
   const { address: account } = useAccount();
-  
+
   useEffect(() => {
-    const newErrors = validateComplete(config);
+    const newErrors = validateComplete(config as DAOConfig);
     setErrors(newErrors);
     onValidation(newErrors);
   }, [config, onValidation]);
 
+  // Show toast notification when deployment fails
+  useEffect(() => {
+    if (deployError && deployErrorDetails) {
+      const errorMessage = deployErrorDetails instanceof Error
+        ? deployErrorDetails.message
+        : String(deployErrorDetails);
+
+      // Parse common error types for user-friendly messages
+      let userMessage = errorMessage;
+      const lowerMsg = errorMessage.toLowerCase();
+
+      if (lowerMsg.includes('user rejected') || lowerMsg.includes('user denied')) {
+        userMessage = 'Transaction was cancelled by the user.';
+      } else if (lowerMsg.includes('insufficient funds')) {
+        userMessage = 'Insufficient funds to complete the deployment.';
+      } else if (lowerMsg.includes('network') || lowerMsg.includes('rpc')) {
+        userMessage = 'Network error. Please check your connection and try again.';
+      }
+
+      toast({
+        title: 'Deployment Failed',
+        description: userMessage,
+        variant: 'destructive',
+      } as any);
+    }
+  }, [deployError, deployErrorDetails, toast]);
+
   // Handle deployment action
   const handleDeploy = () => {
-    console.info('[Deploy] Clicked', {
-      hasDeployDAO: !!deployDAO,
-      hasAccount: !!account,
-      isSupported,
-      isDeploying,
-    });
     if (!deployDAO || !account || !isSupported) {
-      console.error('Cannot deploy: missing requirements', {
-        deployDAO: !!deployDAO,
-        account: !!account,
-        isSupported
-      });
+
+      // Provide specific user feedback
+      let errorTitle = 'Cannot Deploy DAO';
+      let errorDescription = '';
+
+      if (!account) {
+        errorDescription = 'Please connect your wallet to deploy your DAO.';
+      } else if (!isSupported) {
+        errorDescription = 'Please switch to a supported network to deploy your DAO.';
+      } else if (!deployDAO) {
+        errorDescription = 'Deployment function is not available. Please refresh the page and try again.';
+      }
+
+      toast({
+        title: errorTitle,
+        description: errorDescription,
+        variant: 'destructive',
+      } as any);
       return;
     }
 
     // Validate and normalize recipient address
-    if (!isAddress(config.initialRecipient as `0x${string}`, { strict: false })) {
-      console.error('[Deploy] Invalid recipient address', { recipient: config.initialRecipient });
+    if (!config.initialRecipient || !isAddress(config.initialRecipient as `0x${string}`, { strict: false })) {
       toast({
         title: 'Invalid recipient address',
         description: 'Please enter a valid Ethereum address for the initial recipient.',
@@ -80,24 +108,21 @@ export default function ReviewDeploy({
 
     // Convert config to the format expected by the smart contract
     const contractConfig = {
-      tokenName: config.tokenName,
-      tokenSymbol: config.tokenSymbol,
-      initialSupply: BigInt(config.initialSupply),
-      votingDelay: BigInt(config.votingDelay),
-      votingPeriod: BigInt(config.votingPeriod),
-      proposalThreshold: BigInt(config.proposalThreshold),
-      quorumPercentage: BigInt(config.quorumPercentage),
-      timelockDelay: BigInt(config.timelockDelay),
+      tokenName: config.tokenName!,
+      tokenSymbol: config.tokenSymbol!,
+      initialSupply: BigInt(config.initialSupply!),
+      votingDelay: BigInt(config.votingDelay!),
+      votingPeriod: BigInt(config.votingPeriod!),
+      proposalThreshold: BigInt(config.proposalThreshold!),
+      quorumPercentage: BigInt(config.quorumPercentage!),
+      timelockDelay: BigInt(config.timelockDelay!),
     };
 
-    console.info('[Deploy] Invoking deployDAO', {
-      recipient: normalizedRecipient,
-    });
     try {
       // Start the deployment - this should trigger the wallet
       deployDAO(contractConfig, normalizedRecipient as Address);
     } catch (err) {
-      console.error('[Deploy] deployDAO threw synchronously', err);
+      // Deployment failed synchronously
     }
   };
 
@@ -146,13 +171,13 @@ export default function ReviewDeploy({
                 <div>
                   <dt className="text-sm font-medium text-gray-600">Initial Supply</dt>
                   <dd className="text-sm font-semibold text-gray-900">
-                    {parseFloat(config.initialSupply).toLocaleString()} {config.tokenSymbol}
+                    {config.initialSupply ? parseFloat(config.initialSupply).toLocaleString() : '0'} {config.tokenSymbol}
                   </dd>
                 </div>
                 <div>
                   <dt className="text-sm font-medium text-gray-600">Initial Recipient</dt>
                   <dd className="text-sm font-mono text-gray-900">
-                    {config.initialRecipient.slice(0, 6)}...{config.initialRecipient.slice(-4)}
+                    {config.initialRecipient ? `${config.initialRecipient.slice(0, 6)}...${config.initialRecipient.slice(-4)}` : 'Not set'}
                   </dd>
                 </div>
               </div>
@@ -166,35 +191,35 @@ export default function ReviewDeploy({
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600">Voting Delay</span>
                 <span className="text-sm font-medium">
-                  {config.votingDelay} blocks ({formatTime(config.votingDelay, selectedNetwork?.blockTime)})
+                  {config.votingDelay ?? 0} blocks ({formatTime(config.votingDelay ?? 0, selectedNetwork?.blockTime)})
                 </span>
               </div>
-              
+
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600">Voting Period</span>
                 <span className="text-sm font-medium">
-                  {config.votingPeriod} blocks ({formatTime(config.votingPeriod, selectedNetwork?.blockTime)})
+                  {config.votingPeriod ?? 0} blocks ({formatTime(config.votingPeriod ?? 0, selectedNetwork?.blockTime)})
                 </span>
               </div>
-              
+
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600">Proposal Threshold</span>
                 <span className="text-sm font-medium">
-                  {parseFloat(config.proposalThreshold).toLocaleString()} {config.tokenSymbol}
+                  {config.proposalThreshold ? parseFloat(config.proposalThreshold).toLocaleString() : '0'} {config.tokenSymbol}
                 </span>
               </div>
-              
+
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600">Quorum</span>
                 <span className="text-sm font-medium">
-                  {config.quorumPercentage}% ({((parseFloat(config.initialSupply) * config.quorumPercentage) / 100).toLocaleString()} tokens)
+                  {config.quorumPercentage ?? 0}% ({config.initialSupply && config.quorumPercentage ? ((parseFloat(config.initialSupply) * config.quorumPercentage) / 100).toLocaleString() : '0'} tokens)
                 </span>
               </div>
-              
+
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600">Timelock Delay</span>
                 <span className="text-sm font-medium">
-                  {config.timelockDelay}s ({formatTimeFromSeconds(config.timelockDelay)})
+                  {config.timelockDelay ?? 0}s ({formatTimeFromSeconds(config.timelockDelay ?? 0)})
                 </span>
               </div>
             </div>
@@ -306,27 +331,27 @@ export default function ReviewDeploy({
                 <div>
                   <div className="text-sm font-medium">Voting Begins</div>
                   <div className="text-xs text-gray-600">
-                    After {formatTime(config.votingDelay, selectedNetwork?.blockTime)}
+                    After {formatTime(config.votingDelay ?? 0, selectedNetwork?.blockTime)}
                   </div>
                 </div>
               </div>
-              
+
               <div className="flex items-center">
                 <div className="w-8 h-8 bg-primary-100 text-primary-600 rounded-full flex items-center justify-center text-xs font-medium mr-3">3</div>
                 <div>
                   <div className="text-sm font-medium">Voting Ends</div>
                   <div className="text-xs text-gray-600">
-                    After {formatTime(config.votingDelay + config.votingPeriod, selectedNetwork?.blockTime)}
+                    After {formatTime((config.votingDelay ?? 0) + (config.votingPeriod ?? 0), selectedNetwork?.blockTime)}
                   </div>
                 </div>
               </div>
-              
+
               <div className="flex items-center">
                 <div className="w-8 h-8 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-xs font-medium mr-3">4</div>
                 <div>
                   <div className="text-sm font-medium">Execution Available</div>
                   <div className="text-xs text-gray-600">
-                    After timelock delay ({formatTimeFromSeconds(config.timelockDelay)})
+                    After timelock delay ({formatTimeFromSeconds(config.timelockDelay ?? 0)})
                   </div>
                 </div>
               </div>

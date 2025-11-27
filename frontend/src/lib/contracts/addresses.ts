@@ -90,9 +90,9 @@ export async function loadLocalAddresses(): Promise<LocalContractAddresses | nul
       return localAddresses;
     }
   } catch (error) {
-    console.warn('Failed to load local contract addresses:', error);
+    // Failed to load local contract addresses
   }
-  
+
   return null;
 }
 
