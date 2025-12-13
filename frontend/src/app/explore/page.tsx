@@ -2,7 +2,6 @@
 
 import { useState, useMemo } from 'react'
 import Link from 'next/link'
-import type { Route } from 'next'
 import { useChainId } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -215,7 +214,7 @@ function ExplorePageContent() {
                             href={getBlockExplorerUrl(chainId, dao.token)}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="font-mono text-xs text-tally-blue-6 hover:text-tally-blue-7 hover:underline"
+                            className="font-mono text-xs text-primary hover:text-primary/80 hover:underline"
                           >
                             {formatAddress(dao.token)}
                           </a>
@@ -232,7 +231,7 @@ function ExplorePageContent() {
                             href={getBlockExplorerUrl(chainId, dao.governor)}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="font-mono text-xs text-tally-blue-6 hover:text-tally-blue-7 hover:underline"
+                            className="font-mono text-xs text-primary hover:text-primary/80 hover:underline"
                           >
                             {formatAddress(dao.governor)}
                           </a>
@@ -249,7 +248,7 @@ function ExplorePageContent() {
                             href={getBlockExplorerUrl(chainId, dao.timelock)}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="font-mono text-xs text-tally-blue-6 hover:text-tally-blue-7 hover:underline"
+                            className="font-mono text-xs text-primary hover:text-primary/80 hover:underline"
                           >
                             {formatAddress(dao.timelock)}
                           </a>
@@ -266,7 +265,7 @@ function ExplorePageContent() {
                             href={getBlockExplorerUrl(chainId, dao.deployer)}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="font-mono text-xs text-tally-blue-6 hover:text-tally-blue-7 hover:underline"
+                            className="font-mono text-xs text-primary hover:text-primary/80 hover:underline"
                           >
                             {formatAddress(dao.deployer)}
                           </a>
@@ -279,11 +278,29 @@ function ExplorePageContent() {
                     </div>
                   </div>
 
-                  <Button asChild className="w-full rounded-tally-button">
-                    <Link href={`/dao/${dao.governor}` as Route}>
-                      View DAO
-                    </Link>
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button asChild className="flex-1 rounded-tally-button">
+                      <Link href={`/dao/${dao.governor}`}>
+                        Details
+                      </Link>
+                    </Button>
+
+                    {getBlockExplorerUrl(chainId, dao.governor) ? (
+                      <Button asChild variant="outline" className="flex-1 rounded-tally-button">
+                        <a
+                          href={getBlockExplorerUrl(chainId, dao.governor)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          Explorer
+                        </a>
+                      </Button>
+                    ) : (
+                      <Button variant="outline" className="flex-1 rounded-tally-button" disabled>
+                        No explorer
+                      </Button>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             ))}

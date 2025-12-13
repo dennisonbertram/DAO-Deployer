@@ -2,26 +2,26 @@
 
 import { DAOConfig, ValidationError, SUPPORTED_NETWORKS } from '@/types/deploy';
 import { validateComplete, formatTime, formatTimeFromSeconds } from '@/lib/validation/deploy';
-import { useState, useEffect } from 'react';
-import { useAccount } from 'wagmi';
-import { Address, getAddress, isAddress } from 'viem';
+import { useMemo, useState, useEffect } from 'react';
+import { useAccount, useChainId, usePublicClient, useSwitchChain } from 'wagmi';
+import { Address, formatEther, formatGwei, getAddress, isAddress, parseUnits } from 'viem';
 import { useToast } from '@/hooks/use-toast';
 import { useDeployment } from '@/contexts/DeploymentContext';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { FACTORY_ABI } from '@/lib/contracts/abis';
 
 interface ReviewDeployProps {
   onValidation: (errors: ValidationError[]) => void;
-  onDeploy: () => void;
 }
 
 export default function ReviewDeploy({
   onValidation,
-  onDeploy,
 }: ReviewDeployProps) {
   // Get all deployment state from context
   const {
     config,
-    gasEstimate,
-    deploymentStatus,
+    factoryAddress,
     deployDAO,
     isSupported,
     isDeploying,
@@ -37,12 +37,112 @@ export default function ReviewDeploy({
 
   // Get current account
   const { address: account } = useAccount();
+  const walletChainId = useChainId();
+  const publicClient = usePublicClient();
+  const { switchChain, isPending: isSwitchingChain } = useSwitchChain();
+
+  const selectedChainId = selectedNetwork?.chainId;
+  const isWalletOnSelectedNetwork = selectedChainId ? walletChainId === selectedChainId : false;
+
+  const normalizedRecipient = useMemo(() => {
+    if (!config.initialRecipient) return null;
+    if (!isAddress(config.initialRecipient as `0x${string}`, { strict: false })) return null;
+    return getAddress(config.initialRecipient as `0x${string}`);
+  }, [config.initialRecipient]);
+
+  const contractConfig = useMemo(() => {
+    if (
+      !config.tokenName ||
+      !config.tokenSymbol ||
+      !config.initialSupply ||
+      config.votingDelay === undefined ||
+      config.votingPeriod === undefined ||
+      !config.proposalThreshold ||
+      config.quorumPercentage === undefined ||
+      config.timelockDelay === undefined
+    ) {
+      return null;
+    }
+
+    try {
+      return {
+        tokenName: config.tokenName,
+        tokenSymbol: config.tokenSymbol,
+        initialSupply: parseUnits(config.initialSupply, 18),
+        votingDelay: BigInt(config.votingDelay),
+        votingPeriod: BigInt(config.votingPeriod),
+        proposalThreshold: parseUnits(config.proposalThreshold, 18),
+        quorumPercentage: BigInt(config.quorumPercentage),
+        timelockDelay: BigInt(config.timelockDelay),
+      };
+    } catch {
+      return null;
+    }
+  }, [
+    config.initialSupply,
+    config.proposalThreshold,
+    config.quorumPercentage,
+    config.timelockDelay,
+    config.tokenName,
+    config.tokenSymbol,
+    config.votingDelay,
+    config.votingPeriod,
+  ]);
+
+  const [feeEstimate, setFeeEstimate] = useState<{
+    gas: bigint;
+    gasPrice: bigint;
+    maxCostWei: bigint;
+  } | null>(null);
+  const [feeEstimateError, setFeeEstimateError] = useState<string | null>(null);
 
   useEffect(() => {
     const newErrors = validateComplete(config as DAOConfig);
     setErrors(newErrors);
     onValidation(newErrors);
   }, [config, onValidation]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function estimate() {
+      setFeeEstimate(null);
+      setFeeEstimateError(null);
+
+      if (!publicClient) return;
+      if (!factoryAddress) return;
+      if (!account) return;
+      if (!normalizedRecipient) return;
+      if (!contractConfig) return;
+      if (!isWalletOnSelectedNetwork) return;
+      if (errors.length > 0) return;
+
+      try {
+        const [gas, gasPrice] = await Promise.all([
+          publicClient.estimateContractGas({
+            address: factoryAddress,
+            abi: FACTORY_ABI,
+            functionName: 'deployDAO',
+            args: [contractConfig, normalizedRecipient as Address],
+            account,
+          }),
+          publicClient.getGasPrice(),
+        ]);
+
+        if (cancelled) return;
+        setFeeEstimate({ gas, gasPrice, maxCostWei: gas * gasPrice });
+      } catch (e) {
+        if (cancelled) return;
+        const message = e instanceof Error ? e.message : 'Failed to estimate network fee';
+        setFeeEstimateError(message);
+      }
+    }
+
+    estimate();
+    return () => {
+      cancelled = true;
+    };
+  }, [account, contractConfig, errors.length, factoryAddress, isWalletOnSelectedNetwork, normalizedRecipient, publicClient]);
 
   // Show toast notification when deployment fails
   useEffect(() => {
@@ -73,6 +173,22 @@ export default function ReviewDeploy({
 
   // Handle deployment action
   const handleDeploy = () => {
+    if (!selectedNetwork || !selectedChainId) {
+      toast({
+        title: 'Select a network',
+        description: 'Please choose a network before deploying.',
+        variant: 'destructive',
+      } as any);
+      return;
+    }
+
+    if (!isWalletOnSelectedNetwork) {
+      if (switchChain) {
+        switchChain({ chainId: selectedChainId });
+      }
+      return;
+    }
+
     if (!deployDAO || !account || !isSupported) {
 
       // Provide specific user feedback
@@ -96,7 +212,7 @@ export default function ReviewDeploy({
     }
 
     // Validate and normalize recipient address
-    if (!config.initialRecipient || !isAddress(config.initialRecipient as `0x${string}`, { strict: false })) {
+    if (!normalizedRecipient) {
       toast({
         title: 'Invalid recipient address',
         description: 'Please enter a valid Ethereum address for the initial recipient.',
@@ -104,19 +220,14 @@ export default function ReviewDeploy({
       } as any);
       return;
     }
-    const normalizedRecipient = getAddress(config.initialRecipient as `0x${string}`);
-
-    // Convert config to the format expected by the smart contract
-    const contractConfig = {
-      tokenName: config.tokenName!,
-      tokenSymbol: config.tokenSymbol!,
-      initialSupply: BigInt(config.initialSupply!),
-      votingDelay: BigInt(config.votingDelay!),
-      votingPeriod: BigInt(config.votingPeriod!),
-      proposalThreshold: BigInt(config.proposalThreshold!),
-      quorumPercentage: BigInt(config.quorumPercentage!),
-      timelockDelay: BigInt(config.timelockDelay!),
-    };
+    if (!contractConfig) {
+      toast({
+        title: 'Invalid configuration',
+        description: 'Please review your settings and try again.',
+        variant: 'destructive',
+      } as any);
+      return;
+    }
 
     try {
       // Start the deployment - this should trigger the wallet
@@ -126,13 +237,21 @@ export default function ReviewDeploy({
     }
   };
 
-  const canDeploy = errors.length === 0 && tosAccepted && understandsIrreversible && !isDeploying && account && isSupported;
+  const canDeploy = errors.length === 0 &&
+    tosAccepted &&
+    understandsIrreversible &&
+    !isDeploying &&
+    !isSwitchingChain &&
+    !!account &&
+    !!isSupported &&
+    !!selectedChainId &&
+    isWalletOnSelectedNetwork;
 
   return (
     <div className="max-w-4xl mx-auto">
       <div className="mb-8">
-        <h3 className="text-2xl font-bold text-gray-900 mb-4">Review & Deploy</h3>
-        <p className="text-gray-600">
+        <h3 className="text-2xl font-bold text-foreground mb-4">Review & Deploy</h3>
+        <p className="text-muted-foreground">
           Review your DAO configuration carefully before deployment. Once deployed, some settings cannot be changed.
         </p>
       </div>
@@ -140,239 +259,211 @@ export default function ReviewDeploy({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Configuration Summary */}
         <div className="space-y-6">
-          <div className="card">
-            <h4 className="text-lg font-semibold text-gray-900 mb-4">DAO Configuration</h4>
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle>DAO Configuration</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
             
-            <div className="space-y-4">
               <div>
-                <dt className="text-sm font-medium text-gray-600">DAO Name</dt>
-                <dd className="text-lg font-semibold text-gray-900">{config.name}</dd>
+                <dt className="text-sm font-medium text-muted-foreground">DAO Name</dt>
+                <dd className="text-lg font-semibold text-foreground">{config.tokenName}</dd>
               </div>
               
               {config.description && (
                 <div>
-                  <dt className="text-sm font-medium text-gray-600">Description</dt>
-                  <dd className="text-sm text-gray-900">{config.description}</dd>
+                  <dt className="text-sm font-medium text-muted-foreground">Description</dt>
+                  <dd className="text-sm text-foreground">{config.description}</dd>
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <dt className="text-sm font-medium text-gray-600">Token Name</dt>
-                  <dd className="text-sm font-semibold text-gray-900">{config.tokenName}</dd>
-                </div>
-                <div>
-                  <dt className="text-sm font-medium text-gray-600">Token Symbol</dt>
-                  <dd className="text-sm font-semibold text-gray-900">{config.tokenSymbol}</dd>
-                </div>
+              <div>
+                <dt className="text-sm font-medium text-muted-foreground">Token Symbol</dt>
+                <dd className="text-sm font-semibold text-foreground">{config.tokenSymbol}</dd>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <dt className="text-sm font-medium text-gray-600">Initial Supply</dt>
-                  <dd className="text-sm font-semibold text-gray-900">
+                  <dt className="text-sm font-medium text-muted-foreground">Initial Supply</dt>
+                  <dd className="text-sm font-semibold text-foreground">
                     {config.initialSupply ? parseFloat(config.initialSupply).toLocaleString() : '0'} {config.tokenSymbol}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-sm font-medium text-gray-600">Initial Recipient</dt>
-                  <dd className="text-sm font-mono text-gray-900">
+                  <dt className="text-sm font-medium text-muted-foreground">Initial Recipient</dt>
+                  <dd className="text-sm font-mono text-foreground">
                     {config.initialRecipient ? `${config.initialRecipient.slice(0, 6)}...${config.initialRecipient.slice(-4)}` : 'Not set'}
                   </dd>
                 </div>
               </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
-          <div className="card">
-            <h4 className="text-lg font-semibold text-gray-900 mb-4">Governance Parameters</h4>
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle>Governance Parameters</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
             
-            <div className="space-y-3">
               <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Voting Delay</span>
+                <span className="text-sm text-muted-foreground">Voting Delay</span>
                 <span className="text-sm font-medium">
                   {config.votingDelay ?? 0} blocks ({formatTime(config.votingDelay ?? 0, selectedNetwork?.blockTime)})
                 </span>
               </div>
 
               <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Voting Period</span>
+                <span className="text-sm text-muted-foreground">Voting Period</span>
                 <span className="text-sm font-medium">
                   {config.votingPeriod ?? 0} blocks ({formatTime(config.votingPeriod ?? 0, selectedNetwork?.blockTime)})
                 </span>
               </div>
 
               <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Proposal Threshold</span>
+                <span className="text-sm text-muted-foreground">Proposal Threshold</span>
                 <span className="text-sm font-medium">
                   {config.proposalThreshold ? parseFloat(config.proposalThreshold).toLocaleString() : '0'} {config.tokenSymbol}
                 </span>
               </div>
 
               <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Quorum</span>
+                <span className="text-sm text-muted-foreground">Quorum</span>
                 <span className="text-sm font-medium">
                   {config.quorumPercentage ?? 0}% ({config.initialSupply && config.quorumPercentage ? ((parseFloat(config.initialSupply) * config.quorumPercentage) / 100).toLocaleString() : '0'} tokens)
                 </span>
               </div>
 
               <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Timelock Delay</span>
+                <span className="text-sm text-muted-foreground">Timelock Delay</span>
                 <span className="text-sm font-medium">
                   {config.timelockDelay ?? 0}s ({formatTimeFromSeconds(config.timelockDelay ?? 0)})
                 </span>
               </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
-          <div className="card">
-            <h4 className="text-lg font-semibold text-gray-900 mb-4">Network & Features</h4>
-            
-            <div className="space-y-3">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle>Network</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
               <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Network</span>
+                <span className="text-sm text-muted-foreground">Network</span>
                 <span className="text-sm font-medium">{selectedNetwork?.name}</span>
               </div>
-              
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Gas Optimization</span>
-                <span className="text-sm font-medium capitalize">{config.gasOptimization}</span>
-              </div>
-              
-              <div>
-                <span className="text-sm text-gray-600 block mb-2">Additional Features</span>
-                <div className="space-y-1">
-                  {config.enableGaslessVoting && (
-                    <div className="flex items-center text-sm text-green-600">
-                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      Gasless voting enabled
-                    </div>
-                  )}
-                  {config.enableTokenBurning && (
-                    <div className="flex items-center text-sm text-green-600">
-                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      Token burning enabled
-                    </div>
-                  )}
-                  {config.enableTreasuryDiversification && (
-                    <div className="flex items-center text-sm text-green-600">
-                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      Treasury diversification enabled
-                    </div>
-                  )}
-                  {!config.enableGaslessVoting && !config.enableTokenBurning && !config.enableTreasuryDiversification && (
-                    <span className="text-sm text-gray-500">No additional features selected</span>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Deployment Section */}
         <div className="space-y-6">
-          {/* Cost Breakdown */}
-          {gasEstimate && (
-            <div className="card">
-              <h4 className="text-lg font-semibold text-gray-900 mb-4">Cost Breakdown</h4>
-              
-              <div className="space-y-3 mb-4">
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Gas Limit</span>
-                  <span className="text-sm font-medium">{parseInt(gasEstimate.gasLimit).toLocaleString()}</span>
-                </div>
-                
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Gas Price</span>
-                  <span className="text-sm font-medium">{gasEstimate.gasPrice} Gwei</span>
-                </div>
-                
-                <div className="border-t pt-3">
-                  <div className="flex justify-between">
-                    <span className="text-sm font-medium text-gray-900">Total Cost</span>
-                    <span className="text-lg font-bold text-gray-900">
-                      {gasEstimate.totalCost} {selectedNetwork?.currency}
+          {/* Estimated Network Fee */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle>Estimated Network Fee</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {!account ? (
+                <p className="text-sm text-muted-foreground">Connect your wallet to estimate fees.</p>
+              ) : !isWalletOnSelectedNetwork ? (
+                <p className="text-sm text-muted-foreground">Switch to {selectedNetwork?.name} to estimate fees.</p>
+              ) : feeEstimate ? (
+                <>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Estimated gas</span>
+                    <span className="font-medium">{feeEstimate.gas.toString()}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Gas price</span>
+                    <span className="font-medium">{formatGwei(feeEstimate.gasPrice)} gwei</span>
+                  </div>
+                  <div className="flex justify-between text-sm border-t pt-2">
+                    <span className="text-foreground font-medium">Max cost</span>
+                    <span className="font-semibold">
+                      {formatEther(feeEstimate.maxCostWei)} {selectedNetwork?.currency}
                     </span>
                   </div>
-                  <div className="text-right text-sm text-gray-600">
-                    ≈ ${gasEstimate.totalCostUSD}
-                  </div>
-                </div>
-              </div>
-              
-              <div className="text-xs text-gray-500">
-                *Gas prices are estimates and may vary based on network conditions
-              </div>
-            </div>
-          )}
+                  <p className="text-xs text-muted-foreground">
+                    Estimates can change based on network conditions and wallet fee settings.
+                  </p>
+                </>
+              ) : feeEstimateError ? (
+                <p className="text-sm text-muted-foreground">Unable to estimate fees: {feeEstimateError}</p>
+              ) : (
+                <p className="text-sm text-muted-foreground">Estimating…</p>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Governance Timeline Preview */}
-          <div className="card">
-            <h4 className="text-lg font-semibold text-gray-900 mb-4">Governance Timeline</h4>
-            <p className="text-sm text-gray-600 mb-4">Example timeline for a typical proposal:</p>
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle>Governance Timeline</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground mb-4">Example timeline for a typical proposal:</p>
             
             <div className="space-y-3">
               <div className="flex items-center">
-                <div className="w-8 h-8 bg-primary-100 text-primary-600 rounded-full flex items-center justify-center text-xs font-medium mr-3">1</div>
+                <div className="w-8 h-8 bg-primary/10 text-primary rounded-full flex items-center justify-center text-xs font-medium mr-3">1</div>
                 <div>
                   <div className="text-sm font-medium">Proposal Created</div>
-                  <div className="text-xs text-gray-600">Day 0</div>
+                  <div className="text-xs text-muted-foreground">Day 0</div>
                 </div>
               </div>
               
               <div className="flex items-center">
-                <div className="w-8 h-8 bg-primary-100 text-primary-600 rounded-full flex items-center justify-center text-xs font-medium mr-3">2</div>
+                <div className="w-8 h-8 bg-primary/10 text-primary rounded-full flex items-center justify-center text-xs font-medium mr-3">2</div>
                 <div>
                   <div className="text-sm font-medium">Voting Begins</div>
-                  <div className="text-xs text-gray-600">
+                  <div className="text-xs text-muted-foreground">
                     After {formatTime(config.votingDelay ?? 0, selectedNetwork?.blockTime)}
                   </div>
                 </div>
               </div>
 
               <div className="flex items-center">
-                <div className="w-8 h-8 bg-primary-100 text-primary-600 rounded-full flex items-center justify-center text-xs font-medium mr-3">3</div>
+                <div className="w-8 h-8 bg-primary/10 text-primary rounded-full flex items-center justify-center text-xs font-medium mr-3">3</div>
                 <div>
                   <div className="text-sm font-medium">Voting Ends</div>
-                  <div className="text-xs text-gray-600">
+                  <div className="text-xs text-muted-foreground">
                     After {formatTime((config.votingDelay ?? 0) + (config.votingPeriod ?? 0), selectedNetwork?.blockTime)}
                   </div>
                 </div>
               </div>
 
               <div className="flex items-center">
-                <div className="w-8 h-8 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-xs font-medium mr-3">4</div>
+                <div className="w-8 h-8 bg-tally-green-2 text-tally-green-8 rounded-full flex items-center justify-center text-xs font-medium mr-3">4</div>
                 <div>
                   <div className="text-sm font-medium">Execution Available</div>
-                  <div className="text-xs text-gray-600">
+                  <div className="text-xs text-muted-foreground">
                     After timelock delay ({formatTimeFromSeconds(config.timelockDelay ?? 0)})
                   </div>
                 </div>
               </div>
             </div>
-          </div>
+            </CardContent>
+          </Card>
 
           {/* Validation Errors */}
           {errors.length > 0 && (
-            <div className="card border-red-200 bg-red-50">
-              <h4 className="text-lg font-semibold text-red-800 mb-4">Please Fix These Issues</h4>
+            <Card className="border-destructive/30 bg-destructive/10">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-destructive">Please Fix These Issues</CardTitle>
+              </CardHeader>
+              <CardContent>
               <ul className="space-y-2">
                 {errors.map((error, index) => (
-                  <li key={index} className="text-sm text-red-700 flex items-start">
-                    <svg className="w-4 h-4 text-red-500 mt-0.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <li key={index} className="text-sm text-destructive flex items-start">
+                    <svg className="w-4 h-4 text-destructive mt-0.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     {error.message}
                   </li>
                 ))}
               </ul>
-            </div>
+              </CardContent>
+            </Card>
           )}
 
           {/* Confirmation Checkboxes */}
@@ -382,9 +473,9 @@ export default function ReviewDeploy({
                 type="checkbox"
                 checked={understandsIrreversible}
                 onChange={(e) => setUnderstandsIrreversible(e.target.checked)}
-                className="mt-1 w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                className="mt-1 h-4 w-4 rounded border-input accent-primary"
               />
-              <span className="text-sm text-gray-700">
+              <span className="text-sm text-foreground">
                 I understand that deployment is irreversible and the DAO name, token details, and initial parameters cannot be changed after deployment.
               </span>
             </label>
@@ -394,15 +485,15 @@ export default function ReviewDeploy({
                 type="checkbox"
                 checked={tosAccepted}
                 onChange={(e) => setTosAccepted(e.target.checked)}
-                className="mt-1 w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                className="mt-1 h-4 w-4 rounded border-input accent-primary"
               />
-              <span className="text-sm text-gray-700">
+              <span className="text-sm text-foreground">
                 I agree to the{' '}
-                <a href="/terms" className="text-primary-600 hover:text-primary-700 underline" target="_blank">
+                <a href="/terms" className="text-primary underline underline-offset-4 hover:text-primary/80" target="_blank">
                   Terms of Service
                 </a>{' '}
                 and{' '}
-                <a href="/privacy" className="text-primary-600 hover:text-primary-700 underline" target="_blank">
+                <a href="/privacy" className="text-primary underline underline-offset-4 hover:text-primary/80" target="_blank">
                   Privacy Policy
                 </a>
                 .
@@ -412,14 +503,14 @@ export default function ReviewDeploy({
 
           {/* Network Support Warning */}
           {!isSupported && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+            <div className="bg-tally-orange-1 border border-tally-orange-3 rounded-lg p-4 mb-4">
               <div className="flex items-start">
-                <svg className="w-5 h-5 text-yellow-400 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-tally-orange-7 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <div>
-                  <h4 className="text-sm font-medium text-yellow-800 mb-1">Unsupported Network</h4>
-                  <p className="text-sm text-yellow-700">Please switch to a supported network to deploy your DAO.</p>
+                  <h4 className="text-sm font-medium text-tally-orange-9 mb-1">Unsupported network</h4>
+                  <p className="text-sm text-tally-orange-8">Please switch to a supported network to deploy your DAO.</p>
                 </div>
               </div>
             </div>
@@ -427,31 +518,56 @@ export default function ReviewDeploy({
 
           {/* Account Connection Warning */}
           {!account && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+            <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 mb-4">
               <div className="flex items-start">
-                <svg className="w-5 h-5 text-blue-400 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-primary mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <div>
-                  <h4 className="text-sm font-medium text-blue-800 mb-1">Wallet Not Connected</h4>
-                  <p className="text-sm text-blue-700">Please connect your wallet to deploy your DAO.</p>
+                  <h4 className="text-sm font-medium text-foreground mb-1">Wallet not connected</h4>
+                  <p className="text-sm text-muted-foreground">Please connect your wallet to deploy your DAO.</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Network Mismatch Warning */}
+          {!!selectedChainId && !isWalletOnSelectedNetwork && (
+            <div className="bg-tally-orange-1 border border-tally-orange-3 rounded-lg p-4 mb-4">
+              <div className="flex items-start">
+                <svg className="w-5 h-5 text-tally-orange-7 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div className="flex-1">
+                  <h4 className="text-sm font-medium text-tally-orange-9 mb-1">Network mismatch</h4>
+                  <p className="text-sm text-tally-orange-8">
+                    You selected {selectedNetwork?.name}, but your wallet is connected to chain ID {walletChainId}.
+                  </p>
+                  {switchChain && (
+                    <div className="mt-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={!account || isSwitchingChain}
+                        onClick={() => switchChain({ chainId: selectedChainId })}
+                      >
+                        {isSwitchingChain ? 'Switching…' : `Switch to ${selectedNetwork?.name}`}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
           )}
 
           {/* Deploy Button */}
-          <button
+          <Button
             onClick={handleDeploy}
             disabled={!canDeploy}
-            className={`w-full btn text-lg py-4 ${
-              canDeploy
-                ? 'btn-primary'
-                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-            }`}
+            className="w-full text-lg py-6 rounded-tally-button"
           >
-            {isDeploying ? 'Deploying DAO...' : 'Deploy DAO'}
-          </button>
+            {isSwitchingChain ? 'Switching network…' : isDeploying ? 'Deploying DAO...' : 'Deploy DAO'}
+          </Button>
         </div>
       </div>
     </div>

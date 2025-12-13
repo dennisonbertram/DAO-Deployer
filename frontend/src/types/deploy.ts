@@ -1,26 +1,23 @@
 export interface DAOConfig {
   // Step 1: Basic Information
-  name: string;
   description: string;
+  /** On-chain DAO label (stored as `name` in factory event) */
   tokenName: string;
   tokenSymbol: string;
+  /** Whole tokens (UI); converted to 18-decimals on submit */
   initialSupply: string;
   initialRecipient: string;
 
   // Step 2: Governance Parameters
   votingDelay: number; // in blocks
   votingPeriod: number; // in blocks
-  proposalThreshold: string; // in tokens
-  quorumPercentage: number; // percentage (1-100)
+  /** Whole tokens (UI); converted to 18-decimals on submit */
+  proposalThreshold: string;
+  quorumPercentage: number; // percentage integer (1-100)
   timelockDelay: number; // in seconds
 
   // Step 3: Advanced Settings
   network: string;
-  gasOptimization: 'standard' | 'fast' | 'custom';
-  customGasPrice?: string;
-  enableGaslessVoting: boolean;
-  enableTokenBurning: boolean;
-  enableTreasuryDiversification: boolean;
 }
 
 export interface ValidationError {

@@ -1,8 +1,9 @@
 'use client'
 
-import { DAOConfig, ValidationError, SUPPORTED_NETWORKS, NetworkId } from '@/types/deploy';
+import { DAOConfig, ValidationError, SUPPORTED_NETWORKS } from '@/types/deploy';
 import { validateAdvancedSettings } from '@/lib/validation/deploy';
 import FormField from '@/components/deploy/FormField';
+import { useAccount, useChainId, useSwitchChain } from 'wagmi';
 import { useState, useEffect, useMemo, useCallback, memo } from 'react';
 
 interface AdvancedSettingsProps {
@@ -13,6 +14,9 @@ interface AdvancedSettingsProps {
 
 function AdvancedSettings({ config, onUpdate, onValidation }: AdvancedSettingsProps) {
   const [errors, setErrors] = useState<ValidationError[]>([]);
+  const { isConnected } = useAccount();
+  const walletChainId = useChainId();
+  const { switchChain, isPending: isSwitchingChain } = useSwitchChain();
 
   // Memoize validation results
   const validationErrors = useMemo(() => {
@@ -27,10 +31,6 @@ function AdvancedSettings({ config, onUpdate, onValidation }: AdvancedSettingsPr
   const getError = useCallback((field: keyof DAOConfig) => {
     return errors.find(error => error.field === field)?.message;
   }, [errors]);
-
-  const handleInputChange = useCallback((field: keyof DAOConfig, value: string | boolean) => {
-    onUpdate({ [field]: value });
-  }, [onUpdate]);
 
   const selectedNetwork = useMemo(() =>
     SUPPORTED_NETWORKS.find(n => n.id === config.network),
@@ -58,12 +58,21 @@ function AdvancedSettings({ config, onUpdate, onValidation }: AdvancedSettingsPr
     [isDevelopment]
   );
 
+  const handleNetworkSelect = useCallback((networkId: string) => {
+    onUpdate({ network: networkId });
+    const target = SUPPORTED_NETWORKS.find(n => n.id === networkId);
+    if (!target) return;
+    if (!isConnected || !switchChain) return;
+    if (walletChainId === target.chainId) return;
+    switchChain({ chainId: target.chainId });
+  }, [isConnected, onUpdate, switchChain, walletChainId]);
+
   return (
     <div className="max-w-4xl mx-auto">
       <div className="mb-8">
-        <h3 className="text-2xl font-bold text-gray-900 mb-4">Advanced Settings</h3>
-        <p className="text-gray-600">
-          Configure network preferences, gas optimization, and optional features for your DAO.
+        <h3 className="text-2xl font-bold text-foreground mb-4">Advanced Settings</h3>
+        <p className="text-muted-foreground">
+          Choose the network where you will deploy. Your wallet will be asked to switch networks.
         </p>
       </div>
 
@@ -82,8 +91,8 @@ function AdvancedSettings({ config, onUpdate, onValidation }: AdvancedSettingsPr
                 key={network.id}
                 className={`relative flex items-center p-4 border rounded-lg cursor-pointer transition-all ${
                   config.network === network.id
-                    ? 'border-primary-500 bg-primary-50 ring-1 ring-primary-500'
-                    : 'border-gray-200 hover:border-gray-300'
+                    ? 'border-primary bg-primary/10 ring-1 ring-primary/30'
+                    : 'border-border hover:border-border/80'
                 }`}
               >
                 <input
@@ -91,149 +100,51 @@ function AdvancedSettings({ config, onUpdate, onValidation }: AdvancedSettingsPr
                   name="network"
                   value={network.id}
                   checked={config.network === network.id}
-                  onChange={(e) => handleInputChange('network', e.target.value)}
+                  onChange={(e) => handleNetworkSelect(e.target.value)}
                   className="sr-only"
                 />
                 <div className="flex-1">
                   <div className="flex items-center justify-between mb-1">
-                    <h4 className="text-sm font-medium text-gray-900">{network.name}</h4>
-                    <span className="text-xs text-gray-500">{network.currency}</span>
+                    <h4 className="text-sm font-medium text-foreground">{network.name}</h4>
+                    <span className="text-xs text-muted-foreground">{network.currency}</span>
                   </div>
-                  <div className="text-xs text-gray-600 space-x-4">
+                  <div className="text-xs text-muted-foreground space-x-4">
                     <span>Chain ID: {network.chainId}</span>
                     <span>~{network.blockTime}s blocks</span>
                   </div>
                 </div>
                 {config.network === network.id && (
-                  <svg className="w-5 h-5 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                 )}
               </label>
             ))}
           </div>
+          {!isConnected && (
+            <p className="text-xs text-muted-foreground mt-2">
+              Connect your wallet to switch networks automatically.
+            </p>
+          )}
+          {isSwitchingChain && (
+            <p className="text-xs text-muted-foreground mt-2">
+              Switching network in your wallet…
+            </p>
+          )}
         </FormField>
-
-        {/* Gas Optimization */}
-        <FormField
-          label="Gas Optimization"
-          description="Choose how to optimize gas fees for deployment"
-          tooltip="Higher gas prices result in faster transaction confirmation"
-        >
-          <div className="space-y-3">
-            {[
-              { id: 'standard', name: 'Standard', description: 'Balanced speed and cost (~30-60 seconds)' },
-              { id: 'fast', name: 'Fast', description: 'Higher cost for faster confirmation (~15-30 seconds)' },
-              { id: 'custom', name: 'Custom', description: 'Set your own gas price' },
-            ].map((option) => (
-              <label
-                key={option.id}
-                className={`flex items-start p-3 border rounded-lg cursor-pointer transition-all ${
-                  config.gasOptimization === option.id
-                    ? 'border-primary-500 bg-primary-50 ring-1 ring-primary-500'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="gasOptimization"
-                  value={option.id}
-                  checked={config.gasOptimization === option.id}
-                  onChange={(e) => handleInputChange('gasOptimization', e.target.value)}
-                  className="mt-1"
-                />
-                <div className="ml-3">
-                  <h4 className="text-sm font-medium text-gray-900">{option.name}</h4>
-                  <p className="text-sm text-gray-600">{option.description}</p>
-                </div>
-              </label>
-            ))}
-
-            {config.gasOptimization === 'custom' && (
-              <FormField
-                label="Custom Gas Price"
-                description="Enter your preferred gas price in Gwei"
-                error={getError('customGasPrice')}
-                required
-              >
-                <div className="relative">
-                  <input
-                    type="number"
-                    className={`input ${getError('customGasPrice') ? 'border-red-300 focus-visible:ring-red-500' : ''}`}
-                    placeholder="20"
-                    value={config.customGasPrice || ''}
-                    onChange={(e) => handleInputChange('customGasPrice', e.target.value)}
-                    min="1"
-                    step="0.1"
-                  />
-                  <div className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 text-sm">
-                    Gwei
-                  </div>
-                </div>
-              </FormField>
-            )}
-          </div>
-        </FormField>
-
-        {/* Additional Features */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-4">
-            Additional Features
-          </label>
-          <div className="space-y-4">
-            <label className="flex items-start space-x-3">
-              <input
-                type="checkbox"
-                checked={config.enableGaslessVoting || false}
-                onChange={(e) => handleInputChange('enableGaslessVoting', e.target.checked)}
-                className="mt-1 w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
-              />
-              <div>
-                <h4 className="text-sm font-medium text-gray-900">Enable Gasless Voting</h4>
-                <p className="text-sm text-gray-600">Allow users to vote without paying gas fees using meta-transactions</p>
-              </div>
-            </label>
-
-            <label className="flex items-start space-x-3">
-              <input
-                type="checkbox"
-                checked={config.enableTokenBurning || false}
-                onChange={(e) => handleInputChange('enableTokenBurning', e.target.checked)}
-                className="mt-1 w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
-              />
-              <div>
-                <h4 className="text-sm font-medium text-gray-900">Include Token Burning Capability</h4>
-                <p className="text-sm text-gray-600">Allow token holders to permanently remove tokens from circulation</p>
-              </div>
-            </label>
-
-            <label className="flex items-start space-x-3">
-              <input
-                type="checkbox"
-                checked={config.enableTreasuryDiversification || false}
-                onChange={(e) => handleInputChange('enableTreasuryDiversification', e.target.checked)}
-                className="mt-1 w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
-              />
-              <div>
-                <h4 className="text-sm font-medium text-gray-900">Add Treasury Diversification Tools</h4>
-                <p className="text-sm text-gray-600">Include advanced treasury management capabilities for asset diversification</p>
-              </div>
-            </label>
-          </div>
-        </div>
 
         {/* Network Information Card */}
         {selectedNetwork && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+          <div className="bg-primary/10 border border-primary/20 rounded-lg p-6">
             <div className="flex items-start">
-              <svg className="w-6 h-6 text-blue-400 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-6 h-6 text-primary mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <div>
-                <h4 className="text-sm font-medium text-blue-800 mb-2">
+                <h4 className="text-sm font-medium text-foreground mb-2">
                   Deploying to {selectedNetwork.name}
                 </h4>
-                <ul className="text-sm text-blue-700 space-y-1">
+                <ul className="text-sm text-muted-foreground space-y-1">
                   <li>• Chain ID: {selectedNetwork.chainId}</li>
                   <li>• Block time: ~{selectedNetwork.blockTime} seconds</li>
                   <li>• Currency: {selectedNetwork.currency}</li>
@@ -245,18 +156,17 @@ function AdvancedSettings({ config, onUpdate, onValidation }: AdvancedSettingsPr
         )}
 
         {/* Security Notice */}
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+        <div className="bg-tally-orange-1 border border-tally-orange-3 rounded-lg p-4">
           <div className="flex">
-            <svg className="w-5 h-5 text-amber-400 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-tally-orange-7 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16c-.77.833.192 2.5 1.732 2.5z" />
             </svg>
             <div>
-              <h4 className="text-sm font-medium text-amber-800 mb-1">Security Considerations</h4>
-              <ul className="text-sm text-amber-700 space-y-1 list-disc list-inside">
-                <li>Additional features increase contract complexity and gas costs</li>
+              <h4 className="text-sm font-medium text-tally-orange-9 mb-1">Security Considerations</h4>
+              <ul className="text-sm text-tally-orange-8 space-y-1 list-disc list-inside">
                 <li>Test thoroughly on testnets before mainnet deployment</li>
                 <li>Consider starting with basic features and upgrading later</li>
-                <li>Gasless voting requires additional infrastructure setup</li>
+                <li>Always verify network and parameters before signing</li>
               </ul>
             </div>
           </div>

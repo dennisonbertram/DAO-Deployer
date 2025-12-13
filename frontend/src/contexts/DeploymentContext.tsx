@@ -3,7 +3,7 @@
 import { createContext, useContext, ReactNode, useMemo, useState, useCallback, useEffect } from 'react';
 import { Hash } from 'viem';
 import { Address } from 'viem';
-import { DAOConfig, GasEstimate, DeploymentStatus } from '@/types/deploy';
+import { DAOConfig, DeploymentStatus } from '@/types/deploy';
 import { useFactory } from '@/hooks/contracts';
 
 /**
@@ -15,6 +15,7 @@ interface DeploymentContextType {
   updateConfig: (updates: Partial<DAOConfig>) => void;
 
   // Deployment state from factory hook
+  factoryAddress: Address | undefined;
   deployDAO: ((config: any, recipient: Address) => void) | undefined;
   deployHash: Hash | undefined;
   isDeploying: boolean;
@@ -26,9 +27,6 @@ interface DeploymentContextType {
   // Local deployment state
   deploymentStatus: DeploymentStatus;
   setDeploymentStatus: (status: DeploymentStatus) => void;
-
-  // Gas estimation (currently mock data)
-  gasEstimate: GasEstimate;
 
   // Modal state
   showDeploymentModal: boolean;
@@ -75,6 +73,7 @@ export function DeploymentProvider({ children, initialConfig }: DeploymentProvid
 
   // Get deployment state from factory hooks
   const {
+    factoryAddress,
     deployDAO,
     deployHash,
     isDeploying,
@@ -83,14 +82,6 @@ export function DeploymentProvider({ children, initialConfig }: DeploymentProvid
     deployErrorDetails,
     isSupported
   } = useFactory();
-
-  // Mock gas estimate - in real implementation, this would come from Web3
-  const gasEstimate: GasEstimate = useMemo(() => ({
-    gasLimit: '2500000',
-    gasPrice: '20',
-    totalCost: '0.05',
-    totalCostUSD: '150.00'
-  }), []);
 
   // Update config callback
   const updateConfig = useCallback((updates: Partial<DAOConfig>) => {
@@ -124,6 +115,7 @@ export function DeploymentProvider({ children, initialConfig }: DeploymentProvid
   const value = useMemo<DeploymentContextType>(() => ({
     config,
     updateConfig,
+    factoryAddress,
     deployDAO,
     deployHash,
     isDeploying,
@@ -133,7 +125,6 @@ export function DeploymentProvider({ children, initialConfig }: DeploymentProvid
     isSupported,
     deploymentStatus,
     setDeploymentStatus,
-    gasEstimate,
     showDeploymentModal,
     setShowDeploymentModal,
     deploymentHash,
@@ -141,6 +132,7 @@ export function DeploymentProvider({ children, initialConfig }: DeploymentProvid
   }), [
     config,
     updateConfig,
+    factoryAddress,
     deployDAO,
     deployHash,
     isDeploying,
@@ -149,7 +141,6 @@ export function DeploymentProvider({ children, initialConfig }: DeploymentProvid
     deployErrorDetails,
     isSupported,
     deploymentStatus,
-    gasEstimate,
     showDeploymentModal,
     deploymentHash,
   ]);

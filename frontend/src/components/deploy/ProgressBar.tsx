@@ -28,7 +28,7 @@ function ProgressBar({ steps, currentStep }: ProgressBarProps) {
           {steps.map((step, index) => (
             <div key={step.id} className="flex items-center" style={{ width: `${100 / steps.length}%` }}>
               {/* Step content */}
-              <div className="relative z-10 flex items-center gap-3 bg-gray-50 pr-4">
+              <div className="relative z-10 flex items-center gap-3 bg-background pr-4">
                 <div
                   className={cn(
                     'flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium',

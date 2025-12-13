@@ -1,11 +1,14 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 import { Hash, decodeEventLog } from 'viem'
 import { useWaitForTransactionReceipt, useChainId } from 'wagmi'
-import { DAOConfig, DeploymentStatus } from '@/types/deploy'
+import { Dialog, DialogBackdrop, DialogDescription, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react'
+import { DAOConfig } from '@/types/deploy'
 import { FACTORY_ABI } from '@/lib/contracts/abis'
 import { useToast } from '@/hooks/use-toast'
+import { chains } from '@/lib/wagmi'
+import { Button } from '@/components/ui/button'
 
 interface DeployedAddresses {
   token: string
@@ -41,6 +44,7 @@ export default function DeploymentModal({
   const [error, setError] = useState<string | null>(null)
   const chainId = useChainId()
   const { toast } = useToast()
+  const currentChainName = useMemo(() => chains.find(c => c.id === chainId)?.name || 'Unknown Network', [chainId])
 
   // Watch for transaction receipt
   const { 
@@ -115,7 +119,7 @@ export default function DeploymentModal({
             transactionHash: transactionHash!,
             deployedAddresses: deployedAddressesFromEvent,
             deploymentTimestamp: Date.now(),
-            networkName: 'Local Network' // Could be dynamic based on current chain
+            networkName: currentChainName
           }
           onComplete(deploymentData)
         }
@@ -124,7 +128,7 @@ export default function DeploymentModal({
         setDeploymentStep('error')
       }
     }
-  }, [receipt, deploymentStep, config, transactionHash, onComplete])
+  }, [receipt, deploymentStep, config, transactionHash, onComplete, currentChainName])
 
   // Handle transaction errors
   useEffect(() => {
@@ -159,25 +163,25 @@ export default function DeploymentModal({
       transactionHash,
       deployedAddresses,
       deploymentTimestamp: Date.now(),
-      networkName: 'Local Network'
+      networkName: currentChainName
     }
 
     const dataStr = JSON.stringify(deploymentData, null, 2)
     const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr)
     
-    const exportFileDefaultName = `${config.name.replace(/\s+/g, '_').toLowerCase()}_deployment.json`
+    const exportFileDefaultName = `${config.tokenName.replace(/\s+/g, '_').toLowerCase()}_deployment.json`
     
     const linkElement = document.createElement('a')
     linkElement.setAttribute('href', dataUri)
     linkElement.setAttribute('download', exportFileDefaultName)
     linkElement.click()
-  }, [config, transactionHash, deployedAddresses])
+  }, [config, transactionHash, deployedAddresses, currentChainName])
 
   const copyDeploymentInfo = useCallback(() => {
     if (!deployedAddresses || !transactionHash) return
 
     const deploymentText = `
-DAO: ${config.name}
+DAO: ${config.tokenName}
 Transaction: ${transactionHash}
 Token Contract: ${deployedAddresses.token}
 Governor Contract: ${deployedAddresses.governor}
@@ -204,156 +208,179 @@ Deployed: ${new Date().toISOString()}
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
-        <div className="text-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            Deploying {config.name}
-          </h2>
-          <p className="text-gray-600">
-            Please wait while we deploy your DAO to the blockchain
-          </p>
-        </div>
+    <Transition appear show={isOpen} as={Fragment}>
+      <Dialog as="div" className="relative z-50" onClose={onClose}>
+        <TransitionChild
+          as={Fragment}
+          enter="ease-out duration-150"
+          enterFrom="opacity-0"
+          enterTo="opacity-100"
+          leave="ease-in duration-100"
+          leaveFrom="opacity-100"
+          leaveTo="opacity-0"
+        >
+          <DialogBackdrop className="fixed inset-0 bg-black/40 backdrop-blur-[1px]" />
+        </TransitionChild>
 
-        {/* Progress Steps */}
-        <div className="space-y-4 mb-6">
-          {[
-            { key: 'preparing', label: 'Preparing deployment', description: 'Validating configuration and estimating gas' },
-            { key: 'submitting', label: 'Submitting transaction', description: 'Sending transaction to the network' },
-            { key: 'mining', label: 'Mining transaction', description: 'Waiting for blockchain confirmation' },
-            { key: 'success', label: 'Deployment complete', description: 'Your DAO is now live!' }
-          ].map((step) => {
-            const status = getStepStatus(step.key)
-            return (
-              <div key={step.key} className="flex items-center space-x-3">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                  status === 'completed' ? 'bg-green-100 text-green-600' :
-                  status === 'active' ? 'bg-blue-100 text-blue-600' :
-                  status === 'error' ? 'bg-red-100 text-red-600' :
-                  'bg-gray-100 text-gray-400'
-                }`}>
-                  {status === 'completed' ? (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                  ) : status === 'active' ? (
-                    <div className="w-3 h-3 bg-current rounded-full animate-pulse" />
-                  ) : status === 'error' ? (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  ) : (
-                    <div className="w-3 h-3 bg-current rounded-full" />
+        <div className="fixed inset-0 overflow-y-auto">
+          <div className="flex min-h-full items-center justify-center p-4">
+            <TransitionChild
+              as={Fragment}
+              enter="ease-out duration-150"
+              enterFrom="opacity-0 scale-95"
+              enterTo="opacity-100 scale-100"
+              leave="ease-in duration-100"
+              leaveFrom="opacity-100 scale-100"
+              leaveTo="opacity-0 scale-95"
+            >
+              <DialogPanel className="w-full max-w-md overflow-hidden rounded-lg border bg-card text-card-foreground shadow-xl">
+                <div className="p-6">
+                  <div className="text-center mb-6">
+                    <DialogTitle className="text-xl font-semibold tracking-tight">
+                      Deploying {config.tokenName}
+                    </DialogTitle>
+                    <DialogDescription className="text-sm text-muted-foreground mt-1">
+                      Submitting your deployment to {currentChainName}. This may take a minute.
+                    </DialogDescription>
+                  </div>
+
+                  {/* Progress Steps */}
+                  <div className="space-y-4 mb-6">
+                    {[
+                      { key: 'preparing', label: 'Preparing deployment', description: 'Validating configuration and estimating gas' },
+                      { key: 'submitting', label: 'Submitting transaction', description: 'Sending transaction to the network' },
+                      { key: 'mining', label: 'Mining transaction', description: 'Waiting for confirmation' },
+                      { key: 'success', label: 'Deployment complete', description: 'Your DAO is now live!' }
+                    ].map((step) => {
+                      const status = getStepStatus(step.key)
+                      return (
+                        <div key={step.key} className="flex items-center space-x-3">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                            status === 'completed' ? 'bg-tally-green-2 text-tally-green-8' :
+                            status === 'active' ? 'bg-primary/15 text-primary' :
+                            status === 'error' ? 'bg-destructive/15 text-destructive' :
+                            'bg-muted text-muted-foreground'
+                          }`}>
+                            {status === 'completed' ? (
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                            ) : status === 'active' ? (
+                              <div className="w-3 h-3 bg-current rounded-full animate-pulse" />
+                            ) : status === 'error' ? (
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            ) : (
+                              <div className="w-3 h-3 bg-current rounded-full" />
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-sm font-medium ${
+                              status === 'completed' || status === 'active' ? 'text-foreground' : 'text-muted-foreground'
+                            }`}>
+                              {step.label}
+                            </p>
+                            <p className="text-xs text-muted-foreground">{step.description}</p>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  {/* Transaction Hash */}
+                  {transactionHash && (
+                    <div className="rounded-lg border bg-muted/40 p-4 mb-6">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-medium text-foreground">Transaction</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => copyToClipboard(transactionHash)}
+                        >
+                          Copy
+                        </Button>
+                      </div>
+                      <p className="font-mono text-xs text-foreground/90 break-all mt-1">
+                        {transactionHash}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Error State */}
+                  {deploymentStep === 'error' && (
+                    <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 mb-6">
+                      <div className="flex gap-3">
+                        <svg className="w-5 h-5 text-destructive" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <div className="min-w-0">
+                          <h3 className="text-sm font-medium text-destructive">Deployment failed</h3>
+                          <p className="text-sm text-muted-foreground mt-1 break-words">{error}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Success State - Deployed Addresses */}
+                  {deploymentStep === 'success' && deployedAddresses && (
+                    <div className="rounded-lg border border-tally-green-3 bg-tally-green-1 p-4 mb-6">
+                      <h3 className="text-sm font-medium text-tally-green-9 mb-3">Deployment successful</h3>
+                      <div className="space-y-2 text-xs">
+                        {Object.entries(deployedAddresses).map(([type, address]) => (
+                          <div key={type} className="flex justify-between items-center gap-3">
+                            <span className="text-tally-green-8 capitalize">{type}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-tally-green-10">{address.slice(0, 8)}...{address.slice(-6)}</span>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => copyToClipboard(address)}
+                                className="h-7 px-2 text-tally-green-9 hover:text-tally-green-10"
+                              >
+                                Copy
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Action Buttons */}
+                  <div className="flex flex-col space-y-3">
+                    {deploymentStep === 'success' && (
+                      <>
+                        <Button type="button" onClick={copyDeploymentInfo} className="w-full">
+                          Copy deployment info
+                        </Button>
+                        <Button type="button" variant="secondary" onClick={downloadDeploymentData} className="w-full">
+                          Download deployment JSON
+                        </Button>
+                      </>
+                    )}
+                    
+                    {(deploymentStep === 'success' || deploymentStep === 'error') && (
+                      <Button type="button" variant="outline" onClick={onClose} className="w-full">
+                        Close
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* Cancel Button for ongoing deployment */}
+                  {(deploymentStep === 'preparing' || deploymentStep === 'submitting') && (
+                    <Button type="button" variant="ghost" onClick={onClose} className="w-full">
+                      Cancel
+                    </Button>
                   )}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-medium ${
-                    status === 'completed' || status === 'active' ? 'text-gray-900' : 'text-gray-500'
-                  }`}>
-                    {step.label}
-                  </p>
-                  <p className="text-xs text-gray-500">{step.description}</p>
-                </div>
-              </div>
-            )
-          })}
+              </DialogPanel>
+            </TransitionChild>
+          </div>
         </div>
-
-        {/* Transaction Hash */}
-        {transactionHash && (
-          <div className="bg-gray-50 rounded-lg p-4 mb-6">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-700">Transaction Hash:</span>
-              <button
-                onClick={() => copyToClipboard(transactionHash)}
-                className="text-blue-600 hover:text-blue-800 text-xs"
-              >
-                Copy
-              </button>
-            </div>
-            <p className="font-mono text-xs text-gray-900 break-all mt-1">
-              {transactionHash}
-            </p>
-          </div>
-        )}
-
-        {/* Error State */}
-        {deploymentStep === 'error' && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-            <div className="flex">
-              <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <div className="ml-3">
-                <h3 className="text-sm font-medium text-red-800">Deployment Failed</h3>
-                <p className="text-sm text-red-700 mt-1">{error}</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Success State - Deployed Addresses */}
-        {deploymentStep === 'success' && deployedAddresses && (
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-            <h3 className="text-sm font-medium text-green-800 mb-3">Deployment Successful!</h3>
-            <div className="space-y-2 text-xs">
-              {Object.entries(deployedAddresses).map(([type, address]) => (
-                <div key={type} className="flex justify-between items-center">
-                  <span className="text-green-700 capitalize">{type}:</span>
-                  <div className="flex items-center space-x-2">
-                    <span className="font-mono text-green-900">{address.slice(0, 8)}...{address.slice(-6)}</span>
-                    <button
-                      onClick={() => copyToClipboard(address)}
-                      className="text-green-600 hover:text-green-800"
-                    >
-                      Copy
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Action Buttons */}
-        <div className="flex flex-col space-y-3">
-          {deploymentStep === 'success' && (
-            <>
-              <button
-                onClick={copyDeploymentInfo}
-                className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-              >
-                Copy Deployment Info
-              </button>
-              <button
-                onClick={downloadDeploymentData}
-                className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-              >
-                Download Deployment JSON
-              </button>
-            </>
-          )}
-          
-          {(deploymentStep === 'success' || deploymentStep === 'error') && (
-            <button
-              onClick={onClose}
-              className="w-full px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
-            >
-              Close
-            </button>
-          )}
-        </div>
-
-        {/* Cancel Button for ongoing deployment */}
-        {(deploymentStep === 'preparing' || deploymentStep === 'submitting') && (
-          <button
-            onClick={onClose}
-            className="w-full mt-3 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
-          >
-            Cancel
-          </button>
-        )}
-      </div>
-    </div>
+      </Dialog>
+    </Transition>
   )
 }

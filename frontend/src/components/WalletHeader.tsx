@@ -14,6 +14,8 @@ import {
   type CustomNetwork
 } from '@/components/wallet';
 
+const walletConnectConfigured = Boolean(process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID);
+
 export function WalletHeader() {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
@@ -66,13 +68,19 @@ export function WalletHeader() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <Link href="/" className="text-xl font-bold text-gray-900 hover:text-gray-700 transition-colors">
+              <Link href="/" className="text-xl font-bold text-foreground hover:text-foreground/80 transition-colors">
                 DAO Deployer
               </Link>
             </div>
 
             <div className="flex items-center gap-3">
               <NavigationLinks />
+
+              {!walletConnectConfigured && (
+                <span className="hidden sm:inline-flex items-center rounded-full border border-yellow-200 bg-yellow-50 px-3 py-1 text-xs text-yellow-800">
+                  Set `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` to enable WalletConnect
+                </span>
+              )}
 
               {isConnected && (
                 <NetworkSelector

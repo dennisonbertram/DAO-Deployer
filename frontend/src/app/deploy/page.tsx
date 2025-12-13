@@ -1,8 +1,10 @@
 'use client'
 
 import { useState, useCallback, useMemo } from 'react';
+import Link from 'next/link';
 import { DAOConfig, ValidationError, DeploymentStep } from '@/types/deploy';
 import ProgressBar from '@/components/deploy/ProgressBar';
+import { Button } from '@/components/ui/button';
 import BasicInfo from './steps/BasicInfo';
 import GovernanceParams from './steps/GovernanceParams';
 import AdvancedSettings from './steps/AdvancedSettings';
@@ -18,7 +20,6 @@ const isDevelopment = process.env.NODE_ENV === 'development' ||
                        window.location.hostname === '127.0.0.1'));
 
 const INITIAL_CONFIG: Partial<DAOConfig> = {
-  name: '',
   description: '',
   tokenName: '',
   tokenSymbol: '',
@@ -30,10 +31,6 @@ const INITIAL_CONFIG: Partial<DAOConfig> = {
   quorumPercentage: 10,
   timelockDelay: 86400, // 1 day
   network: isDevelopment ? 'localhost' : 'ethereum', // Default to localhost in development
-  gasOptimization: 'standard',
-  enableGaslessVoting: false,
-  enableTokenBurning: false,
-  enableTreasuryDiversification: false,
 };
 
 /**
@@ -74,7 +71,7 @@ function DeployPageContent() {
     {
       id: 3,
       title: 'Advanced Settings',
-      description: 'Network selection, gas optimization, and optional features',
+      description: 'Network selection and wallet switching',
       isComplete: currentStep > 3 && (stepErrors[3]?.length === 0),
       isActive: currentStep === 3,
     },
@@ -124,10 +121,6 @@ function DeployPageContent() {
     }
   };
 
-  const handleDeploy = useCallback(() => {
-    // This is now just a placeholder - the modal will show automatically when isDeploying becomes true
-  }, []);
-
   const renderCurrentStep = () => {
     switch (currentStep) {
       case 1:
@@ -158,7 +151,6 @@ function DeployPageContent() {
         return (
           <ReviewDeploy
             onValidation={handleStep4Validation}
-            onDeploy={handleDeploy}
           />
         );
       default:
@@ -169,46 +161,46 @@ function DeployPageContent() {
   // Success page after deployment
   if (deploymentStatus.status === 'success') {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gradient-to-br from-background to-secondary/20">
         <div className="mx-auto max-w-4xl px-4 py-16 sm:px-6 lg:px-8">
           <div className="text-center">
-            <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-6">
-              <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="mx-auto w-16 h-16 bg-tally-green-2 rounded-full flex items-center justify-center mb-6">
+              <svg className="w-8 h-8 text-tally-green-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">DAO Deployed Successfully!</h1>
-            <p className="text-lg text-gray-600 mb-8">
-              Your {config.name} DAO has been deployed and is ready for governance.
+            <h1 className="text-3xl font-bold text-foreground mb-4">DAO deployed</h1>
+            <p className="text-lg text-muted-foreground mb-8">
+              Your {config.tokenName} DAO has been deployed and is ready for governance.
             </p>
 
             {deploymentStatus.deployedAddresses && (
-              <div className="bg-white border rounded-lg p-6 mb-8 text-left max-w-2xl mx-auto">
-                <h3 className="text-lg font-semibold mb-4">Deployed Contracts</h3>
+              <div className="bg-card border rounded-lg p-6 mb-8 text-left max-w-2xl mx-auto">
+                <h3 className="text-lg font-semibold mb-4">Deployed contracts</h3>
                 <div className="space-y-3 font-mono text-sm">
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Token:</span>
-                    <span className="text-gray-900">{deploymentStatus.deployedAddresses.token}</span>
+                    <span className="text-muted-foreground">Token</span>
+                    <span className="text-foreground">{deploymentStatus.deployedAddresses.token}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Governor:</span>
-                    <span className="text-gray-900">{deploymentStatus.deployedAddresses.governor}</span>
+                    <span className="text-muted-foreground">Governor</span>
+                    <span className="text-foreground">{deploymentStatus.deployedAddresses.governor}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Timelock:</span>
-                    <span className="text-gray-900">{deploymentStatus.deployedAddresses.timelock}</span>
+                    <span className="text-muted-foreground">Timelock</span>
+                    <span className="text-foreground">{deploymentStatus.deployedAddresses.timelock}</span>
                   </div>
                 </div>
               </div>
             )}
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button className="btn-primary px-8 py-3">
-                View DAO Dashboard
-              </button>
-              <button className="btn-outline px-8 py-3">
-                Share with Community
-              </button>
+              <Button className="rounded-tally-button px-8 py-6" onClick={() => window.location.reload()}>
+                Deploy another DAO
+              </Button>
+              <Button variant="secondary" className="rounded-tally-button px-8 py-6" asChild>
+                <Link href="/explore">Explore deployments</Link>
+              </Button>
             </div>
           </div>
         </div>
@@ -217,47 +209,40 @@ function DeployPageContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-background to-secondary/20">
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">Deploy Your DAO</h1>
-          <p className="text-xl text-gray-600">
+          <h1 className="font-brand text-4xl font-bold tracking-tight sm:text-6xl mb-tally-6">Deploy Your DAO</h1>
+          <p className="text-lg leading-8 text-muted-foreground max-w-2xl mx-auto">
             Configure and deploy your sovereign DAO in just a few steps
           </p>
         </div>
 
         <ProgressBar steps={steps} currentStep={currentStep} />
 
-        <div className="bg-white rounded-lg shadow-sm border p-8 mb-8">
+        <div className="bg-card rounded-tally-container border p-8 mb-8">
           {renderCurrentStep()}
         </div>
 
         {/* Navigation Buttons */}
         <div className="flex justify-between">
-          <button
+          <Button
             onClick={handlePrevStep}
             disabled={currentStep === 1}
-            className={`btn px-8 py-3 ${
-              currentStep === 1
-                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                : 'btn-outline'
-            }`}
+            variant="outline"
+            className="rounded-tally-button px-8"
           >
             ← Previous Step
-          </button>
+          </Button>
 
           {currentStep < 4 && (
-            <button
+            <Button
               onClick={handleNextStep}
               disabled={!canProceed(currentStep)}
-              className={`btn px-8 py-3 ${
-                canProceed(currentStep)
-                  ? 'btn-primary'
-                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-              }`}
+              className="rounded-tally-button px-8"
             >
               Next Step →
-            </button>
+            </Button>
           )}
         </div>
 
