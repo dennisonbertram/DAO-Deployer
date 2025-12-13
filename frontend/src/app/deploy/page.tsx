@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useMemo } from 'react';
+import Link from 'next/link';
 import { DAOConfig, ValidationError, DeploymentStep } from '@/types/deploy';
 import ProgressBar from '@/components/deploy/ProgressBar';
 import { Button } from '@/components/ui/button';
@@ -70,7 +71,7 @@ function DeployPageContent() {
     {
       id: 3,
       title: 'Advanced Settings',
-      description: 'Network selection, gas optimization, and optional features',
+      description: 'Network selection and wallet switching',
       isComplete: currentStep > 3 && (stepErrors[3]?.length === 0),
       isActive: currentStep === 3,
     },
@@ -163,42 +164,42 @@ function DeployPageContent() {
       <div className="min-h-screen bg-gradient-to-br from-background to-secondary/20">
         <div className="mx-auto max-w-4xl px-4 py-16 sm:px-6 lg:px-8">
           <div className="text-center">
-            <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-6">
-              <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="mx-auto w-16 h-16 bg-tally-green-2 rounded-full flex items-center justify-center mb-6">
+              <svg className="w-8 h-8 text-tally-green-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">DAO Deployed Successfully!</h1>
-            <p className="text-lg text-gray-600 mb-8">
+            <h1 className="text-3xl font-bold text-foreground mb-4">DAO deployed</h1>
+            <p className="text-lg text-muted-foreground mb-8">
               Your {config.tokenName} DAO has been deployed and is ready for governance.
             </p>
 
             {deploymentStatus.deployedAddresses && (
-              <div className="bg-white border rounded-lg p-6 mb-8 text-left max-w-2xl mx-auto">
-                <h3 className="text-lg font-semibold mb-4">Deployed Contracts</h3>
+              <div className="bg-card border rounded-lg p-6 mb-8 text-left max-w-2xl mx-auto">
+                <h3 className="text-lg font-semibold mb-4">Deployed contracts</h3>
                 <div className="space-y-3 font-mono text-sm">
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Token:</span>
-                    <span className="text-gray-900">{deploymentStatus.deployedAddresses.token}</span>
+                    <span className="text-muted-foreground">Token</span>
+                    <span className="text-foreground">{deploymentStatus.deployedAddresses.token}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Governor:</span>
-                    <span className="text-gray-900">{deploymentStatus.deployedAddresses.governor}</span>
+                    <span className="text-muted-foreground">Governor</span>
+                    <span className="text-foreground">{deploymentStatus.deployedAddresses.governor}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Timelock:</span>
-                    <span className="text-gray-900">{deploymentStatus.deployedAddresses.timelock}</span>
+                    <span className="text-muted-foreground">Timelock</span>
+                    <span className="text-foreground">{deploymentStatus.deployedAddresses.timelock}</span>
                   </div>
                 </div>
               </div>
             )}
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button className="rounded-tally-button px-8 py-6" disabled>
-                DAO Dashboard (Coming soon)
+              <Button className="rounded-tally-button px-8 py-6" onClick={() => window.location.reload()}>
+                Deploy another DAO
               </Button>
-              <Button variant="outline" className="rounded-tally-button px-8 py-6" disabled>
-                Share (Coming soon)
+              <Button variant="secondary" className="rounded-tally-button px-8 py-6" asChild>
+                <Link href="/explore">Explore deployments</Link>
               </Button>
             </div>
           </div>

@@ -70,8 +70,8 @@ function AdvancedSettings({ config, onUpdate, onValidation }: AdvancedSettingsPr
   return (
     <div className="max-w-4xl mx-auto">
       <div className="mb-8">
-        <h3 className="text-2xl font-bold text-gray-900 mb-4">Advanced Settings</h3>
-        <p className="text-gray-600">
+        <h3 className="text-2xl font-bold text-foreground mb-4">Advanced Settings</h3>
+        <p className="text-muted-foreground">
           Choose the network where you will deploy. Your wallet will be asked to switch networks.
         </p>
       </div>
@@ -91,8 +91,8 @@ function AdvancedSettings({ config, onUpdate, onValidation }: AdvancedSettingsPr
                 key={network.id}
                 className={`relative flex items-center p-4 border rounded-lg cursor-pointer transition-all ${
                   config.network === network.id
-                    ? 'border-primary-500 bg-primary-50 ring-1 ring-primary-500'
-                    : 'border-gray-200 hover:border-gray-300'
+                    ? 'border-primary bg-primary/10 ring-1 ring-primary/30'
+                    : 'border-border hover:border-border/80'
                 }`}
               >
                 <input
@@ -105,16 +105,16 @@ function AdvancedSettings({ config, onUpdate, onValidation }: AdvancedSettingsPr
                 />
                 <div className="flex-1">
                   <div className="flex items-center justify-between mb-1">
-                    <h4 className="text-sm font-medium text-gray-900">{network.name}</h4>
-                    <span className="text-xs text-gray-500">{network.currency}</span>
+                    <h4 className="text-sm font-medium text-foreground">{network.name}</h4>
+                    <span className="text-xs text-muted-foreground">{network.currency}</span>
                   </div>
-                  <div className="text-xs text-gray-600 space-x-4">
+                  <div className="text-xs text-muted-foreground space-x-4">
                     <span>Chain ID: {network.chainId}</span>
                     <span>~{network.blockTime}s blocks</span>
                   </div>
                 </div>
                 {config.network === network.id && (
-                  <svg className="w-5 h-5 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                 )}
@@ -122,12 +122,12 @@ function AdvancedSettings({ config, onUpdate, onValidation }: AdvancedSettingsPr
             ))}
           </div>
           {!isConnected && (
-            <p className="text-xs text-gray-500 mt-2">
+            <p className="text-xs text-muted-foreground mt-2">
               Connect your wallet to switch networks automatically.
             </p>
           )}
           {isSwitchingChain && (
-            <p className="text-xs text-gray-500 mt-2">
+            <p className="text-xs text-muted-foreground mt-2">
               Switching network in your wallet…
             </p>
           )}
@@ -135,16 +135,16 @@ function AdvancedSettings({ config, onUpdate, onValidation }: AdvancedSettingsPr
 
         {/* Network Information Card */}
         {selectedNetwork && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+          <div className="bg-primary/10 border border-primary/20 rounded-lg p-6">
             <div className="flex items-start">
-              <svg className="w-6 h-6 text-blue-400 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-6 h-6 text-primary mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <div>
-                <h4 className="text-sm font-medium text-blue-800 mb-2">
+                <h4 className="text-sm font-medium text-foreground mb-2">
                   Deploying to {selectedNetwork.name}
                 </h4>
-                <ul className="text-sm text-blue-700 space-y-1">
+                <ul className="text-sm text-muted-foreground space-y-1">
                   <li>• Chain ID: {selectedNetwork.chainId}</li>
                   <li>• Block time: ~{selectedNetwork.blockTime} seconds</li>
                   <li>• Currency: {selectedNetwork.currency}</li>
@@ -156,14 +156,14 @@ function AdvancedSettings({ config, onUpdate, onValidation }: AdvancedSettingsPr
         )}
 
         {/* Security Notice */}
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+        <div className="bg-tally-orange-1 border border-tally-orange-3 rounded-lg p-4">
           <div className="flex">
-            <svg className="w-5 h-5 text-amber-400 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-tally-orange-7 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16c-.77.833.192 2.5 1.732 2.5z" />
             </svg>
             <div>
-              <h4 className="text-sm font-medium text-amber-800 mb-1">Security Considerations</h4>
-              <ul className="text-sm text-amber-700 space-y-1 list-disc list-inside">
+              <h4 className="text-sm font-medium text-tally-orange-9 mb-1">Security Considerations</h4>
+              <ul className="text-sm text-tally-orange-8 space-y-1 list-disc list-inside">
                 <li>Test thoroughly on testnets before mainnet deployment</li>
                 <li>Consider starting with basic features and upgrading later</li>
                 <li>Always verify network and parameters before signing</li>

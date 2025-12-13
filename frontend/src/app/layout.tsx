@@ -44,7 +44,7 @@ export default function RootLayout({
             <main className="min-h-screen">
               {children}
             </main>
-            <footer className="border-t border-gray-200 dark:border-gray-800">
+            <footer className="border-t border-border">
               <div className="mx-auto max-w-5xl px-6 py-6 flex items-center justify-between text-sm text-muted-foreground">
                 <p className="m-0">© {new Date().getFullYear()} DAO Deployer</p>
                 <nav className="flex items-center gap-4">

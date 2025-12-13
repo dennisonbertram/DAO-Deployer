@@ -61,15 +61,15 @@ function GovernanceParams({ config, onUpdate, onValidation }: GovernanceParamsPr
   return (
     <div className="max-w-4xl mx-auto">
       <div className="mb-8">
-        <h3 className="text-2xl font-bold text-gray-900 mb-4">Governance Parameters</h3>
-        <p className="text-gray-600">
+        <h3 className="text-2xl font-bold text-foreground mb-4">Governance Parameters</h3>
+        <p className="text-muted-foreground">
           Configure how your DAO makes decisions. These parameters control proposal timing, voting requirements, and execution delays.
         </p>
       </div>
 
       {/* Preset Selection */}
       <div className="mb-8">
-        <label className="block text-sm font-medium text-gray-700 mb-4">
+        <label className="block text-sm font-medium text-foreground mb-4">
           Choose a Governance Preset
         </label>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -80,12 +80,12 @@ function GovernanceParams({ config, onUpdate, onValidation }: GovernanceParamsPr
               onClick={() => handlePresetChange(key as PresetId)}
               className={`p-4 border rounded-lg text-left transition-all ${
                 selectedPreset === key
-                  ? 'border-primary-500 bg-primary-50 ring-1 ring-primary-500'
-                  : 'border-gray-200 hover:border-gray-300'
+                  ? 'border-primary bg-primary/10 ring-1 ring-primary/30'
+                  : 'border-border hover:border-border/80'
               }`}
             >
-              <h4 className="font-medium text-gray-900 mb-1">{preset.name}</h4>
-              <p className="text-sm text-gray-600">{preset.description}</p>
+              <h4 className="font-medium text-foreground mb-1">{preset.name}</h4>
+              <p className="text-sm text-muted-foreground">{preset.description}</p>
             </button>
           ))}
         </div>
@@ -95,12 +95,12 @@ function GovernanceParams({ config, onUpdate, onValidation }: GovernanceParamsPr
           onClick={() => handlePresetChange('custom')}
           className={`w-full p-3 border rounded-lg text-left transition-all ${
             selectedPreset === 'custom'
-              ? 'border-primary-500 bg-primary-50 ring-1 ring-primary-500'
-              : 'border-gray-200 hover:border-gray-300'
+              ? 'border-primary bg-primary/10 ring-1 ring-primary/30'
+              : 'border-border hover:border-border/80'
           }`}
         >
           <div className="flex items-center">
-            <svg className="w-5 h-5 text-gray-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-muted-foreground mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4" />
             </svg>
             <span className="font-medium">Custom Configuration</span>
@@ -126,12 +126,12 @@ function GovernanceParams({ config, onUpdate, onValidation }: GovernanceParamsPr
                 onChange={(e) => handleInputChange('votingDelay', parseInt(e.target.value) || 0)}
                 min="1"
               />
-              <div className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 text-sm">
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground text-sm">
                 blocks
               </div>
             </div>
             {typeof config.votingDelay === 'number' && (
-              <div className="text-xs text-gray-600 mt-1">
+              <div className="text-xs text-muted-foreground mt-1">
                 {formatTime(config.votingDelay, blockTime)}
               </div>
             )}
@@ -153,12 +153,12 @@ function GovernanceParams({ config, onUpdate, onValidation }: GovernanceParamsPr
                 onChange={(e) => handleInputChange('votingPeriod', parseInt(e.target.value) || 0)}
                 min="1"
               />
-              <div className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 text-sm">
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground text-sm">
                 blocks
               </div>
             </div>
             {typeof config.votingPeriod === 'number' && (
-              <div className="text-xs text-gray-600 mt-1">
+              <div className="text-xs text-muted-foreground mt-1">
                 {formatTime(config.votingPeriod, blockTime)}
               </div>
             )}
@@ -183,12 +183,12 @@ function GovernanceParams({ config, onUpdate, onValidation }: GovernanceParamsPr
                 min="0"
                 step="any"
               />
-              <div className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 text-sm">
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground text-sm">
                 tokens
               </div>
             </div>
             {config.proposalThreshold && config.initialSupply && (
-              <div className="text-xs text-gray-600 mt-1">
+              <div className="text-xs text-muted-foreground mt-1">
                 {((parseFloat(config.proposalThreshold) / parseFloat(config.initialSupply)) * 100).toFixed(2)}% of total supply
               </div>
             )}
@@ -212,12 +212,12 @@ function GovernanceParams({ config, onUpdate, onValidation }: GovernanceParamsPr
                 max="100"
                 step="1"
               />
-              <div className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 text-sm">
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground text-sm">
                 %
               </div>
             </div>
             {config.quorumPercentage && config.initialSupply && (
-              <div className="text-xs text-gray-600 mt-1">
+              <div className="text-xs text-muted-foreground mt-1">
                 {((parseFloat(config.initialSupply) * config.quorumPercentage) / 100).toLocaleString()} tokens minimum
               </div>
             )}
@@ -240,33 +240,33 @@ function GovernanceParams({ config, onUpdate, onValidation }: GovernanceParamsPr
             onChange={(e) => handleInputChange('timelockDelay', parseInt(e.target.value) || 0)}
             min="0"
           />
-            <div className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 text-sm">
+            <div className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground text-sm">
               seconds
             </div>
           </div>
           {typeof config.timelockDelay === 'number' && (
-            <div className="text-xs text-gray-600 mt-1">
+            <div className="text-xs text-muted-foreground mt-1">
               {formatTimeFromSeconds(config.timelockDelay)}
             </div>
           )}
         </FormField>
 
         {/* Governance Scenario Preview */}
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
-          <h4 className="text-lg font-medium text-gray-900 mb-4">Governance Scenario Preview</h4>
+        <div className="bg-muted/30 border border-border rounded-lg p-6">
+          <h4 className="text-lg font-medium text-foreground mb-4">Governance Scenario Preview</h4>
           <div className="space-y-3 text-sm">
             <div className="flex justify-between">
-              <span className="text-gray-600">1. Proposal Created</span>
+              <span className="text-muted-foreground">1. Proposal Created</span>
               <span className="font-medium">Day 0</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">2. Voting Begins</span>
+              <span className="text-muted-foreground">2. Voting Begins</span>
               <span className="font-medium">
                 Day {config.votingDelay ? (config.votingDelay * blockTime / 86400).toFixed(1) : '0'}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">3. Voting Ends</span>
+              <span className="text-muted-foreground">3. Voting Ends</span>
               <span className="font-medium">
                 Day {(config.votingDelay && config.votingPeriod) 
                   ? ((config.votingDelay + config.votingPeriod) * blockTime / 86400).toFixed(1) 
@@ -274,7 +274,7 @@ function GovernanceParams({ config, onUpdate, onValidation }: GovernanceParamsPr
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">4. Execution Available</span>
+              <span className="text-muted-foreground">4. Execution Available</span>
               <span className="font-medium">
                 Day {(config.votingDelay && config.votingPeriod && config.timelockDelay) 
                   ? (((config.votingDelay + config.votingPeriod) * blockTime + config.timelockDelay) / 86400).toFixed(1)
@@ -284,14 +284,14 @@ function GovernanceParams({ config, onUpdate, onValidation }: GovernanceParamsPr
           </div>
         </div>
 
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+        <div className="bg-tally-orange-1 border border-tally-orange-3 rounded-lg p-4">
           <div className="flex">
-            <svg className="w-5 h-5 text-amber-400 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-tally-orange-7 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16c-.77.833.192 2.5 1.732 2.5z" />
             </svg>
             <div>
-              <h4 className="text-sm font-medium text-amber-800 mb-1">Governance Considerations</h4>
-              <ul className="text-sm text-amber-700 space-y-1 list-disc list-inside">
+              <h4 className="text-sm font-medium text-tally-orange-9 mb-1">Governance Considerations</h4>
+              <ul className="text-sm text-tally-orange-8 space-y-1 list-disc list-inside">
                 <li>Lower thresholds increase participation but may allow spam proposals</li>
                 <li>Higher quorum requirements ensure legitimacy but may prevent action</li>
                 <li>Longer delays provide security but slow down governance</li>

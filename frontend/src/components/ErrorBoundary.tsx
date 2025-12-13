@@ -1,6 +1,8 @@
 'use client'
 
 import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -50,44 +52,32 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
       // Default fallback UI
       return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-          <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
-            <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
-              <svg
-                className="w-8 h-8 text-red-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                />
-              </svg>
-            </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">
-              Something went wrong
-            </h1>
-            <p className="text-gray-600 mb-6">
-              We encountered an unexpected error. Please try again or contact support if the
-              problem persists.
-            </p>
-            {process.env.NODE_ENV === 'development' && this.state.error && (
-              <div className="mb-6 p-4 bg-red-50 rounded-md text-left">
-                <p className="text-sm font-mono text-red-800 break-all">
-                  {this.state.error.message}
-                </p>
+        <div className="min-h-screen flex items-center justify-center bg-background px-4">
+          <Card className="w-full max-w-md">
+            <CardHeader className="text-center">
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
               </div>
-            )}
-            <button
-              onClick={this.handleReset}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
-            >
-              Try again
-            </button>
-          </div>
+              <CardTitle>Something went wrong</CardTitle>
+              <CardDescription>
+                We hit an unexpected error. Try again, and if it persists, reload the page.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {process.env.NODE_ENV === 'development' && this.state.error && (
+                <div className="rounded-md border border-destructive/25 bg-destructive/10 p-3 text-left">
+                  <p className="text-xs font-mono text-destructive break-words">
+                    {this.state.error.message}
+                  </p>
+                </div>
+              )}
+              <Button onClick={this.handleReset} className="w-full">
+                Try again
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       );
     }

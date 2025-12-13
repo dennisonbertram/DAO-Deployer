@@ -56,7 +56,7 @@ function BasicInfo({ config, onUpdate, onValidation }: BasicInfoProps) {
     <div className="max-w-4xl mx-auto">
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-2xl font-bold text-gray-900">Basic Information</h3>
+          <h3 className="text-2xl font-bold text-foreground">Basic Information</h3>
           {isDevelopment && (
             <button
               onClick={fillTestData}
@@ -67,7 +67,7 @@ function BasicInfo({ config, onUpdate, onValidation }: BasicInfoProps) {
             </button>
           )}
         </div>
-        <p className="text-gray-600">
+        <p className="text-muted-foreground">
           Set up the fundamental details for your DAO, including name, description, and token configuration.
         </p>
       </div>
@@ -86,7 +86,7 @@ function BasicInfo({ config, onUpdate, onValidation }: BasicInfoProps) {
             onChange={(e) => handleInputChange('tokenName', e.target.value)}
             maxLength={50}
           />
-          <div className="text-xs text-gray-500 mt-1">
+          <div className="text-xs text-muted-foreground mt-1">
             {config.tokenName?.length || 0}/50 characters
           </div>
         </FormField>
@@ -105,7 +105,7 @@ function BasicInfo({ config, onUpdate, onValidation }: BasicInfoProps) {
             maxLength={500}
             rows={4}
           />
-          <div className="text-xs text-gray-500 mt-1">
+          <div className="text-xs text-muted-foreground mt-1">
             {config.description?.length || 0}/500 characters
           </div>
         </FormField>
@@ -146,7 +146,7 @@ function BasicInfo({ config, onUpdate, onValidation }: BasicInfoProps) {
                 min="0"
                 step="any"
               />
-              <div className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500">
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground">
                 tokens
               </div>
             </div>
@@ -168,14 +168,14 @@ function BasicInfo({ config, onUpdate, onValidation }: BasicInfoProps) {
           </FormField>
         </div>
 
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="bg-primary/10 border border-primary/20 rounded-lg p-4">
           <div className="flex">
-            <svg className="w-5 h-5 text-blue-400 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-primary mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <div>
-              <h4 className="text-sm font-medium text-blue-800 mb-1">Important Notes</h4>
-              <ul className="text-sm text-blue-700 space-y-1 list-disc list-inside">
+              <h4 className="text-sm font-medium text-foreground mb-1">Important Notes</h4>
+              <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
                 <li>DAO name and token symbol cannot be changed after deployment</li>
                 <li>The initial recipient will have full voting power until tokens are distributed</li>
                 <li>Consider distributing tokens to multiple addresses for better decentralization</li>
