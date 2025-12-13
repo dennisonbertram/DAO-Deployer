@@ -2,7 +2,6 @@
 
 import { useState, useMemo } from 'react'
 import Link from 'next/link'
-import type { Route } from 'next'
 import { useChainId } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -279,11 +278,21 @@ function ExplorePageContent() {
                     </div>
                   </div>
 
-                  <Button asChild className="w-full rounded-tally-button">
-                    <Link href={`/dao/${dao.governor}` as Route}>
-                      View DAO
-                    </Link>
-                  </Button>
+                  {getBlockExplorerUrl(chainId, dao.governor) ? (
+                    <Button asChild className="w-full rounded-tally-button">
+                      <a
+                        href={getBlockExplorerUrl(chainId, dao.governor)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        View Governor Contract
+                      </a>
+                    </Button>
+                  ) : (
+                    <Button className="w-full rounded-tally-button" disabled>
+                      No explorer for this network
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             ))}

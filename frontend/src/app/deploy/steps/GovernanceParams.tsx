@@ -3,6 +3,7 @@
 import { DAOConfig, ValidationError, GOVERNANCE_PRESETS, PresetId, SUPPORTED_NETWORKS } from '@/types/deploy';
 import { validateGovernanceParams, formatTime, formatTimeFromSeconds } from '@/lib/validation/deploy';
 import FormField from '@/components/deploy/FormField';
+import { Input } from '@/components/ui/input';
 import { useState, useEffect, useMemo, useCallback, memo } from 'react';
 
 interface GovernanceParamsProps {
@@ -117,13 +118,13 @@ function GovernanceParams({ config, onUpdate, onValidation }: GovernanceParamsPr
             tooltip="Gives community time to review proposals before voting begins"
           >
             <div className="relative">
-              <input
+              <Input
                 type="number"
-                className={`input ${getError('votingDelay') ? 'border-red-300 focus-visible:ring-red-500' : ''}`}
+                className="pr-16"
                 placeholder="1800"
                 value={config.votingDelay ?? ''}
                 onChange={(e) => handleInputChange('votingDelay', parseInt(e.target.value) || 0)}
-                min="0"
+                min="1"
               />
               <div className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 text-sm">
                 blocks
@@ -144,9 +145,9 @@ function GovernanceParams({ config, onUpdate, onValidation }: GovernanceParamsPr
             tooltip="Duration for community members to cast their votes"
           >
             <div className="relative">
-              <input
+              <Input
                 type="number"
-                className={`input ${getError('votingPeriod') ? 'border-red-300 focus-visible:ring-red-500' : ''}`}
+                className="pr-16"
                 placeholder="25200"
                 value={config.votingPeriod ?? ''}
                 onChange={(e) => handleInputChange('votingPeriod', parseInt(e.target.value) || 0)}
@@ -173,9 +174,9 @@ function GovernanceParams({ config, onUpdate, onValidation }: GovernanceParamsPr
             tooltip="Prevents spam by requiring proposers to hold tokens"
           >
             <div className="relative">
-              <input
+              <Input
                 type="number"
-                className={`input ${getError('proposalThreshold') ? 'border-red-300 focus-visible:ring-red-500' : ''}`}
+                className="pr-16"
                 placeholder="1000"
                 value={config.proposalThreshold || ''}
                 onChange={(e) => handleInputChange('proposalThreshold', e.target.value)}
@@ -201,15 +202,15 @@ function GovernanceParams({ config, onUpdate, onValidation }: GovernanceParamsPr
             tooltip="Percentage of total supply that must participate for proposal to be valid"
           >
             <div className="relative">
-              <input
+              <Input
                 type="number"
-                className={`input ${getError('quorumPercentage') ? 'border-red-300 focus-visible:ring-red-500' : ''}`}
+                className="pr-12"
                 placeholder="10"
                 value={config.quorumPercentage ?? ''}
-                onChange={(e) => handleInputChange('quorumPercentage', parseFloat(e.target.value) || 0)}
-                min="0.1"
+                onChange={(e) => handleInputChange('quorumPercentage', parseInt(e.target.value) || 0)}
+                min="1"
                 max="100"
-                step="0.1"
+                step="1"
               />
               <div className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 text-sm">
                 %
@@ -230,15 +231,15 @@ function GovernanceParams({ config, onUpdate, onValidation }: GovernanceParamsPr
           required
           tooltip="Security feature that allows time to respond to malicious proposals"
         >
-          <div className="relative">
-            <input
-              type="number"
-              className={`input ${getError('timelockDelay') ? 'border-red-300 focus-visible:ring-red-500' : ''}`}
-              placeholder="86400"
-              value={config.timelockDelay ?? ''}
-              onChange={(e) => handleInputChange('timelockDelay', parseInt(e.target.value) || 0)}
-              min="0"
-            />
+        <div className="relative">
+          <Input
+            type="number"
+            className="pr-20"
+            placeholder="86400"
+            value={config.timelockDelay ?? ''}
+            onChange={(e) => handleInputChange('timelockDelay', parseInt(e.target.value) || 0)}
+            min="0"
+          />
             <div className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 text-sm">
               seconds
             </div>

@@ -12,7 +12,6 @@ import {
   isSupportedChain,
   localhost,
   DeployedDAO,
-  GAS_LIMITS
 } from '@/lib/contracts';
 import { DAOConfig as ContractDAOConfig } from '@/lib/contracts/types';
 import { DAOConfig } from '@/types/deploy';
@@ -186,7 +185,6 @@ export function useDeployDAO() {
         abi: FACTORY_ABI,
         functionName: 'deployDAO',
         args: [config, recipient] as readonly [ContractDAOConfig, Address],
-        gas: GAS_LIMITS.DEPLOY_DAO,
         chainId,
         account,
         nonce,
@@ -195,6 +193,7 @@ export function useDeployDAO() {
   }, [factoryAddress, writeContract, chainId, account, publicClient]);
 
   return {
+    factoryAddress,
     deployDAO,
     hash,
     isPending,
@@ -233,6 +232,7 @@ export function useFactory() {
   const { daos: allDAOs, isLoading: loadingAllDAOs, refetch: refetchAllDAOs } = useAllDAOs();
   const { count: totalCount, isLoading: loadingCount } = useDAOCount();
   const { 
+    factoryAddress,
     deployDAO, 
     hash: deployHash, 
     isPending: isDeploying, 
@@ -263,6 +263,7 @@ export function useFactory() {
     refetchAllDAOs,
     
     // Deployment state
+    factoryAddress,
     deployHash,
     isDeploying,
     deployError,

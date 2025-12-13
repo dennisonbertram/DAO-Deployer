@@ -3,6 +3,8 @@
 import { DAOConfig, ValidationError } from '@/types/deploy';
 import { validateBasicInfo } from '@/lib/validation/deploy';
 import FormField from '@/components/deploy/FormField';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { useState, useEffect, useMemo, useCallback, memo } from 'react';
 
 interface BasicInfoProps {
@@ -35,9 +37,8 @@ function BasicInfo({ config, onUpdate, onValidation }: BasicInfoProps) {
   // Test data for development - wrapped in useCallback to prevent re-creation
   const fillTestData = useCallback(() => {
     onUpdate({
-      name: 'Test DAO',
       description: 'A test DAO for development and testing purposes. This DAO demonstrates governance functionality and token-based voting.',
-      tokenName: 'Test DAO Token',
+      tokenName: 'Test DAO',
       tokenSymbol: 'TEST',
       initialSupply: '1000000',
       initialRecipient: '0x742d35Cc6473D1C7Cac5BBcEf5bC8c8E4523ABcD', // Sample test address
@@ -74,21 +75,19 @@ function BasicInfo({ config, onUpdate, onValidation }: BasicInfoProps) {
       <div className="space-y-6">
         <FormField
           label="DAO Name"
-          description="Choose a descriptive name for your DAO that reflects its purpose and community"
-          error={getError('name')}
+          description="This name is stored on-chain and shown when browsing deployed DAOs"
+          error={getError('tokenName')}
           required
-          tooltip="This will be displayed across the platform and cannot be changed after deployment"
+          tooltip="This value is stored in the factory deployment event and cannot be changed after deployment"
         >
-          <input
-            type="text"
-            className={`input ${getError('name') ? 'border-red-300 focus-visible:ring-red-500' : ''}`}
+          <Input
             placeholder="e.g., Awesome Community DAO"
-            value={config.name || ''}
-            onChange={(e) => handleInputChange('name', e.target.value)}
+            value={config.tokenName || ''}
+            onChange={(e) => handleInputChange('tokenName', e.target.value)}
             maxLength={50}
           />
           <div className="text-xs text-gray-500 mt-1">
-            {config.name?.length || 0}/50 characters
+            {config.tokenName?.length || 0}/50 characters
           </div>
         </FormField>
 
@@ -98,8 +97,8 @@ function BasicInfo({ config, onUpdate, onValidation }: BasicInfoProps) {
           error={getError('description')}
           tooltip="This helps potential members understand what your DAO is about"
         >
-          <textarea
-            className={`input min-h-[100px] resize-none ${getError('description') ? 'border-red-300 focus-visible:ring-red-500' : ''}`}
+          <Textarea
+            className="min-h-[100px] resize-none"
             placeholder="Describe your DAO's purpose, goals, and community..."
             value={config.description || ''}
             onChange={(e) => handleInputChange('description', e.target.value)}
@@ -111,24 +110,7 @@ function BasicInfo({ config, onUpdate, onValidation }: BasicInfoProps) {
           </div>
         </FormField>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <FormField
-            label="Token Name"
-            description="The full name of your governance token"
-            error={getError('tokenName')}
-            required
-            tooltip="This appears in wallets and token lists"
-          >
-            <input
-              type="text"
-              className={`input ${getError('tokenName') ? 'border-red-300 focus-visible:ring-red-500' : ''}`}
-              placeholder="e.g., Awesome DAO Token"
-              value={config.tokenName || ''}
-              onChange={(e) => handleInputChange('tokenName', e.target.value)}
-              maxLength={30}
-            />
-          </FormField>
-
+        <div className="grid grid-cols-1 gap-6">
           <FormField
             label="Token Symbol"
             description="A short abbreviation for your token"
@@ -136,13 +118,12 @@ function BasicInfo({ config, onUpdate, onValidation }: BasicInfoProps) {
             required
             tooltip="Typically 2-5 uppercase letters, like ETH or USDC"
           >
-            <input
-              type="text"
-              className={`input uppercase ${getError('tokenSymbol') ? 'border-red-300 focus-visible:ring-red-500' : ''}`}
+            <Input
+              className="uppercase"
               placeholder="e.g., ADT"
               value={config.tokenSymbol || ''}
               onChange={(e) => handleInputChange('tokenSymbol', e.target.value.toUpperCase())}
-              maxLength={10}
+              maxLength={6}
             />
           </FormField>
         </div>
@@ -156,9 +137,9 @@ function BasicInfo({ config, onUpdate, onValidation }: BasicInfoProps) {
             tooltip="This determines the total voting power. Can be any positive number."
           >
             <div className="relative">
-              <input
+              <Input
                 type="number"
-                className={`input ${getError('initialSupply') ? 'border-red-300 focus-visible:ring-red-500' : ''}`}
+                className="pr-16"
                 placeholder="1000000"
                 value={config.initialSupply || ''}
                 onChange={(e) => handleInputChange('initialSupply', e.target.value)}
@@ -178,9 +159,8 @@ function BasicInfo({ config, onUpdate, onValidation }: BasicInfoProps) {
             required
             tooltip="This address will have full voting power initially. Usually the deployer's address."
           >
-            <input
-              type="text"
-              className={`input font-mono text-sm ${getError('initialRecipient') ? 'border-red-300 focus-visible:ring-red-500' : ''}`}
+            <Input
+              className="font-mono text-sm"
               placeholder="0x1234...5678"
               value={config.initialRecipient || ''}
               onChange={(e) => handleInputChange('initialRecipient', e.target.value)}
@@ -196,7 +176,7 @@ function BasicInfo({ config, onUpdate, onValidation }: BasicInfoProps) {
             <div>
               <h4 className="text-sm font-medium text-blue-800 mb-1">Important Notes</h4>
               <ul className="text-sm text-blue-700 space-y-1 list-disc list-inside">
-                <li>DAO name and token details cannot be changed after deployment</li>
+                <li>DAO name and token symbol cannot be changed after deployment</li>
                 <li>The initial recipient will have full voting power until tokens are distributed</li>
                 <li>Consider distributing tokens to multiple addresses for better decentralization</li>
               </ul>

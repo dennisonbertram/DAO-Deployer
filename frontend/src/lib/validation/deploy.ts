@@ -2,10 +2,8 @@ import { DAOConfig, ValidationError } from '@/types/deploy';
 import { isAddress } from 'viem';
 
 // Constants for validation limits
-const NAME_MIN_LENGTH = 3;
-const NAME_MAX_LENGTH = 50;
-const TOKEN_NAME_MIN_LENGTH = 2;
-const TOKEN_NAME_MAX_LENGTH = 30;
+const DAO_NAME_MIN_LENGTH = 3;
+const DAO_NAME_MAX_LENGTH = 50;
 const TOKEN_SYMBOL_MIN_LENGTH = 2;
 const TOKEN_SYMBOL_MAX_LENGTH = 6;
 const DESCRIPTION_MAX_LENGTH = 500;
@@ -29,27 +27,6 @@ function containsHtmlOrScript(str: string): boolean {
 export function validateBasicInfo(config: Partial<DAOConfig>): ValidationError[] {
   const errors: ValidationError[] = [];
 
-  // DAO Name validation
-  if (!config.name?.trim()) {
-    errors.push({ field: 'name', message: 'DAO name is required' });
-  } else {
-    if (hasLeadingOrTrailingSpaces(config.name)) {
-      errors.push({ field: 'name', message: 'DAO name cannot have leading or trailing spaces' });
-    }
-    if (hasConsecutiveSpaces(config.name)) {
-      errors.push({ field: 'name', message: 'DAO name cannot contain consecutive spaces' });
-    }
-    if (config.name.trim().length < NAME_MIN_LENGTH) {
-      errors.push({ field: 'name', message: `DAO name must be at least ${NAME_MIN_LENGTH} characters` });
-    }
-    if (config.name.length > NAME_MAX_LENGTH) {
-      errors.push({ field: 'name', message: `DAO name must not exceed ${NAME_MAX_LENGTH} characters` });
-    }
-    if (!/^[a-zA-Z0-9 ]+$/.test(config.name)) {
-      errors.push({ field: 'name', message: 'DAO name can only contain letters, numbers, and single spaces' });
-    }
-  }
-
   // Description validation
   if (config.description) {
     if (config.description.length > DESCRIPTION_MAX_LENGTH) {
@@ -60,24 +37,24 @@ export function validateBasicInfo(config: Partial<DAOConfig>): ValidationError[]
     }
   }
 
-  // Token Name validation
+  // DAO Name (stored as tokenName in contract) validation
   if (!config.tokenName?.trim()) {
-    errors.push({ field: 'tokenName', message: 'Token name is required' });
+    errors.push({ field: 'tokenName', message: 'DAO name is required' });
   } else {
     if (hasLeadingOrTrailingSpaces(config.tokenName)) {
-      errors.push({ field: 'tokenName', message: 'Token name cannot have leading or trailing spaces' });
+      errors.push({ field: 'tokenName', message: 'DAO name cannot have leading or trailing spaces' });
     }
     if (hasConsecutiveSpaces(config.tokenName)) {
-      errors.push({ field: 'tokenName', message: 'Token name cannot contain consecutive spaces' });
+      errors.push({ field: 'tokenName', message: 'DAO name cannot contain consecutive spaces' });
     }
-    if (config.tokenName.trim().length < TOKEN_NAME_MIN_LENGTH) {
-      errors.push({ field: 'tokenName', message: `Token name must be at least ${TOKEN_NAME_MIN_LENGTH} characters` });
+    if (config.tokenName.trim().length < DAO_NAME_MIN_LENGTH) {
+      errors.push({ field: 'tokenName', message: `DAO name must be at least ${DAO_NAME_MIN_LENGTH} characters` });
     }
-    if (config.tokenName.length > TOKEN_NAME_MAX_LENGTH) {
-      errors.push({ field: 'tokenName', message: `Token name must not exceed ${TOKEN_NAME_MAX_LENGTH} characters` });
+    if (config.tokenName.length > DAO_NAME_MAX_LENGTH) {
+      errors.push({ field: 'tokenName', message: `DAO name must not exceed ${DAO_NAME_MAX_LENGTH} characters` });
     }
     if (!/^[a-zA-Z0-9 ]+$/.test(config.tokenName)) {
-      errors.push({ field: 'tokenName', message: 'Token name can only contain letters, numbers, and single spaces' });
+      errors.push({ field: 'tokenName', message: 'DAO name can only contain letters, numbers, and single spaces' });
     }
   }
 
@@ -123,7 +100,7 @@ export function validateBasicInfo(config: Partial<DAOConfig>): ValidationError[]
 }
 
 // Constants for governance validation
-const VOTING_DELAY_MIN = 0;
+const VOTING_DELAY_MIN = 1;
 const VOTING_DELAY_MAX = 100800; // ~2 weeks at 12s blocks
 const VOTING_PERIOD_MIN = 1;
 const VOTING_PERIOD_MAX = 604800; // ~100 days at 12s blocks
@@ -141,7 +118,7 @@ export function validateGovernanceParams(config: Partial<DAOConfig>): Validation
   } else if (!Number.isInteger(config.votingDelay)) {
     errors.push({ field: 'votingDelay', message: 'Voting delay must be a whole number of blocks' });
   } else if (config.votingDelay < VOTING_DELAY_MIN) {
-    errors.push({ field: 'votingDelay', message: `Voting delay must be at least ${VOTING_DELAY_MIN} blocks` });
+    errors.push({ field: 'votingDelay', message: `Voting delay must be at least ${VOTING_DELAY_MIN} block` });
   } else if (config.votingDelay > VOTING_DELAY_MAX) {
     errors.push({ field: 'votingDelay', message: `Voting delay is too large (maximum ${VOTING_DELAY_MAX} blocks, ~2 weeks)` });
   }
@@ -176,8 +153,8 @@ export function validateGovernanceParams(config: Partial<DAOConfig>): Validation
   // Quorum Percentage validation
   if (config.quorumPercentage === undefined || config.quorumPercentage === null) {
     errors.push({ field: 'quorumPercentage', message: 'Quorum percentage is required' });
-  } else if (!Number.isFinite(config.quorumPercentage)) {
-    errors.push({ field: 'quorumPercentage', message: 'Quorum percentage must be a valid number' });
+  } else if (!Number.isInteger(config.quorumPercentage)) {
+    errors.push({ field: 'quorumPercentage', message: 'Quorum percentage must be a whole number' });
   } else if (config.quorumPercentage < QUORUM_MIN) {
     errors.push({ field: 'quorumPercentage', message: `Quorum percentage must be at least ${QUORUM_MIN}%` });
   } else if (config.quorumPercentage > QUORUM_MAX) {
@@ -204,20 +181,6 @@ export function validateAdvancedSettings(config: Partial<DAOConfig>): Validation
   // Network validation
   if (!config.network?.trim()) {
     errors.push({ field: 'network', message: 'Network selection is required' });
-  }
-
-  // Custom Gas Price validation
-  if (config.gasOptimization === 'custom') {
-    if (!config.customGasPrice?.trim()) {
-      errors.push({ field: 'customGasPrice', message: 'Custom gas price is required when using custom optimization' });
-    } else {
-      const gasPrice = parseFloat(config.customGasPrice);
-      if (isNaN(gasPrice)) {
-        errors.push({ field: 'customGasPrice', message: 'Custom gas price must be a valid number' });
-      } else if (gasPrice <= 0) {
-        errors.push({ field: 'customGasPrice', message: 'Custom gas price must be greater than zero' });
-      }
-    }
   }
 
   return errors;

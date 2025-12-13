@@ -3,6 +3,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { DAOConfig, ValidationError, DeploymentStep } from '@/types/deploy';
 import ProgressBar from '@/components/deploy/ProgressBar';
+import { Button } from '@/components/ui/button';
 import BasicInfo from './steps/BasicInfo';
 import GovernanceParams from './steps/GovernanceParams';
 import AdvancedSettings from './steps/AdvancedSettings';
@@ -18,7 +19,6 @@ const isDevelopment = process.env.NODE_ENV === 'development' ||
                        window.location.hostname === '127.0.0.1'));
 
 const INITIAL_CONFIG: Partial<DAOConfig> = {
-  name: '',
   description: '',
   tokenName: '',
   tokenSymbol: '',
@@ -30,10 +30,6 @@ const INITIAL_CONFIG: Partial<DAOConfig> = {
   quorumPercentage: 10,
   timelockDelay: 86400, // 1 day
   network: isDevelopment ? 'localhost' : 'ethereum', // Default to localhost in development
-  gasOptimization: 'standard',
-  enableGaslessVoting: false,
-  enableTokenBurning: false,
-  enableTreasuryDiversification: false,
 };
 
 /**
@@ -124,10 +120,6 @@ function DeployPageContent() {
     }
   };
 
-  const handleDeploy = useCallback(() => {
-    // This is now just a placeholder - the modal will show automatically when isDeploying becomes true
-  }, []);
-
   const renderCurrentStep = () => {
     switch (currentStep) {
       case 1:
@@ -158,7 +150,6 @@ function DeployPageContent() {
         return (
           <ReviewDeploy
             onValidation={handleStep4Validation}
-            onDeploy={handleDeploy}
           />
         );
       default:
@@ -169,7 +160,7 @@ function DeployPageContent() {
   // Success page after deployment
   if (deploymentStatus.status === 'success') {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gradient-to-br from-background to-secondary/20">
         <div className="mx-auto max-w-4xl px-4 py-16 sm:px-6 lg:px-8">
           <div className="text-center">
             <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-6">
@@ -179,7 +170,7 @@ function DeployPageContent() {
             </div>
             <h1 className="text-3xl font-bold text-gray-900 mb-4">DAO Deployed Successfully!</h1>
             <p className="text-lg text-gray-600 mb-8">
-              Your {config.name} DAO has been deployed and is ready for governance.
+              Your {config.tokenName} DAO has been deployed and is ready for governance.
             </p>
 
             {deploymentStatus.deployedAddresses && (
@@ -203,12 +194,12 @@ function DeployPageContent() {
             )}
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button className="btn-primary px-8 py-3">
-                View DAO Dashboard
-              </button>
-              <button className="btn-outline px-8 py-3">
-                Share with Community
-              </button>
+              <Button className="rounded-tally-button px-8 py-6" disabled>
+                DAO Dashboard (Coming soon)
+              </Button>
+              <Button variant="outline" className="rounded-tally-button px-8 py-6" disabled>
+                Share (Coming soon)
+              </Button>
             </div>
           </div>
         </div>
@@ -217,47 +208,40 @@ function DeployPageContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-background to-secondary/20">
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">Deploy Your DAO</h1>
-          <p className="text-xl text-gray-600">
+          <h1 className="font-brand text-4xl font-bold tracking-tight sm:text-6xl mb-tally-6">Deploy Your DAO</h1>
+          <p className="text-lg leading-8 text-muted-foreground max-w-2xl mx-auto">
             Configure and deploy your sovereign DAO in just a few steps
           </p>
         </div>
 
         <ProgressBar steps={steps} currentStep={currentStep} />
 
-        <div className="bg-white rounded-lg shadow-sm border p-8 mb-8">
+        <div className="bg-card rounded-tally-container border p-8 mb-8">
           {renderCurrentStep()}
         </div>
 
         {/* Navigation Buttons */}
         <div className="flex justify-between">
-          <button
+          <Button
             onClick={handlePrevStep}
             disabled={currentStep === 1}
-            className={`btn px-8 py-3 ${
-              currentStep === 1
-                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                : 'btn-outline'
-            }`}
+            variant="outline"
+            className="rounded-tally-button px-8"
           >
             ← Previous Step
-          </button>
+          </Button>
 
           {currentStep < 4 && (
-            <button
+            <Button
               onClick={handleNextStep}
               disabled={!canProceed(currentStep)}
-              className={`btn px-8 py-3 ${
-                canProceed(currentStep)
-                  ? 'btn-primary'
-                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-              }`}
+              className="rounded-tally-button px-8"
             >
               Next Step →
-            </button>
+            </Button>
           )}
         </div>
 

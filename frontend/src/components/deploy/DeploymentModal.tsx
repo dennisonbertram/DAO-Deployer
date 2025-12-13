@@ -165,7 +165,7 @@ export default function DeploymentModal({
     const dataStr = JSON.stringify(deploymentData, null, 2)
     const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr)
     
-    const exportFileDefaultName = `${config.name.replace(/\s+/g, '_').toLowerCase()}_deployment.json`
+    const exportFileDefaultName = `${config.tokenName.replace(/\s+/g, '_').toLowerCase()}_deployment.json`
     
     const linkElement = document.createElement('a')
     linkElement.setAttribute('href', dataUri)
@@ -177,7 +177,7 @@ export default function DeploymentModal({
     if (!deployedAddresses || !transactionHash) return
 
     const deploymentText = `
-DAO: ${config.name}
+DAO: ${config.tokenName}
 Transaction: ${transactionHash}
 Token Contract: ${deployedAddresses.token}
 Governor Contract: ${deployedAddresses.governor}
@@ -208,7 +208,7 @@ Deployed: ${new Date().toISOString()}
       <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
         <div className="text-center mb-6">
           <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            Deploying {config.name}
+            Deploying {config.tokenName}
           </h2>
           <p className="text-gray-600">
             Please wait while we deploy your DAO to the blockchain
